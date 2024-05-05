@@ -1,9 +1,13 @@
 const express = require("express");
-const app = express();
 const morgan = require("morgan");
+const app = express();
+const taskRoutes = require("./routes/task.routes");
+
 
 app.use(morgan("dev"));
 app.use(express.json());
+
+app.use(taskRoutes);
 
 
 app.get("/", (req, res) => {
