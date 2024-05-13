@@ -56,4 +56,44 @@ router.get("/genres", async (req, res) => {
   res.json(response.data);
 });
 
+router.get("/movie", async (req, res) => {
+  try {
+    const { movieTitle } = req.query;
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/search/movie?include_adult=false&language=es-MX&page=1&query=${encodeURIComponent(movieTitle)}`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+      },
+    };
+
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error al obtener detalles de la película:", error);
+    res.status(500).json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
+router.get("/cast", async (req, res) => {
+  try {
+    const { movieId } = req.query;
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-MX`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+      },
+    };
+
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error al obtener detalles de la película:", error);
+    res.status(500).json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
 module.exports = router;
