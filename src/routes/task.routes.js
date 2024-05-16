@@ -96,4 +96,25 @@ router.get("/cast", async (req, res) => {
   }
 });
 
+router.get("/providers", async (req, res) => {
+  try {
+    const { movieId } = req.query;
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/movie/${movieId}/watch/providers`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+      },
+    };
+
+    const response = await axios.request(options);
+    res.json(response.data);
+  } catch (error) {
+    console.error("Error al obtener detalles de la película:", error);
+    res.status(500).json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
+
 module.exports = router;
