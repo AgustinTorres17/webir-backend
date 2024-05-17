@@ -58,8 +58,10 @@ router.get("/genres", async (req, res) => {
 
 router.get("/movie", async (req, res) => {
   try {
-    const { movieTitle } = req.query;
-    const options = {
+    let { movieTitle } = req.query;
+    movieTitle = movieTitle.toLowerCase().replace(/ /g, "%20");
+    console.log(movieTitle);
+    let options = {
       method: "GET",
       url: `https://api.themoviedb.org/3/search/movie?include_adult=false&language=es-MX&page=1&query=${encodeURIComponent(movieTitle)}`,
       headers: {
@@ -68,11 +70,17 @@ router.get("/movie", async (req, res) => {
       },
     };
 
-    const response = await axios.request(options);
+    let response = await axios.request(options);
+    if(!response.data.results.length){
+      options.url = `https://api.themoviedb.org/3/search/tv?language=es-MX&query=${encodeURIComponent(movieTitle)}`
+      response = await axios.request(options);
+      console.log(response.data?.results[0].name);
+      response.data.results[0].title = response.data?.results[0].name;
+    }
     res.json(response.data);
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
-    res.status(500).json({ message: "Error al obtener detalles de la película" });
+    res.status(500).json({ message: req.query});
   }
 });
 
