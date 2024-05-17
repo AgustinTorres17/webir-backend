@@ -2,6 +2,37 @@ const { Router } = require("express");
 const axios = require("axios");
 const router = Router();
 
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const configModel = "Devuelve un array con los nombres de las peliculas, series o tv shows que, a tu parecer, sean los mas adecuados. Estos tienen que estar en español de méxico, debes de darme solo el nombre de las peliculas, series o tv shows candidatas. El formato debe ser un array que contenga en cada celda el nombre como un string. El nombre de la pelicula, serie o tv show debe ser exacto, es decir, el nombre publicado oficialmente. Evita usar cualquier caracter especial que no este en el nombre. Trata de, en el caso de ser posible, dar al menos 10 nombres y no mas de 20. Tambien, si respetar el tipo, si el usuario pide peliculas debes de dar peliculas, si pide series o tv shows, debes de dar series o tv shows."
+
+const genAI = new  GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
+
+const model = genAI.getGenerativeModel({model: 'gemini-1.0-pro'})
+
+router.post("/generate", async (req, res) => {
+  let { prompt } = req.body;
+  console.log(prompt);
+  if (!prompt) return res.status(400).json({ message: "No se proporcionó un prompt" });
+  prompt += configModel;
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  // Extrae el texto de la respuesta
+  console.log(response)
+  const text = response?.candidates[0]?.content?.parts[0]?.text;
+
+  if (!text) return res.status(500).json({ message: "No se pudo generar el texto" });
+
+  // Divide el texto por los saltos de línea para obtener un array de nombres de películas
+  const movieNames = text?.split('\n');
+
+  // Elimina los guiones del principio de cada nombre de película, reemplaza los espacios por %20 y convierte todo a minúsculas
+  const cleanedMovieNames = movieNames.map(name => name.replace(/^- /, '').replace(/ /g, '%20').toLowerCase());
+
+  // Envía el array de nombres de películas como respuesta
+  res.json(cleanedMovieNames);
+});
+
 router.get("/", async (req, res) => {
   res.send("Working");
 });
