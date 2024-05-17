@@ -96,7 +96,6 @@ router.get("/genres", async (req, res) => {
 router.get("/movie", async (req, res) => {
   try {
     let { movieTitle } = req.query;
-    //movieTitle = movieTitle.toLowerCase().replace(/ /g, "%20");
     let options = {
       method: "GET",
       url: `https://api.themoviedb.org/3/search/movie?include_adult=false&language=es-MX&page=1&query=${movieTitle}`,
@@ -108,18 +107,33 @@ router.get("/movie", async (req, res) => {
     };
 
     const response = await axios.request(options);
-    if (response.data.results.length) return res.json(response.data);
+    let results = response.data.results;
 
-    options.url = `https://api.themoviedb.org/3/search/tv?language=es-MX&query=${movieTitle}`;
-    const response2 = await axios.request(options);
-    if (response2.data.results.length === 0)
-      return res.status(404).json({ message: "No se encontraron resultados" });
-    //console.log(response2.data);
-    response2.data.results[0].title = response2.data?.results[0]?.name;
-    return res.json(response2.data);
+    // Si no hay resultados de películas, buscar series de TV
+    if (!results.length) {
+      options.url = `https://api.themoviedb.org/3/search/tv?language=es-MX&query=${movieTitle}`;
+      const response2 = await axios.request(options);
+      if (!response2.data.results.length) {
+        return res.status(404).json({ message: "No se encontraron resultados" });
+      }
+      results = response2.data.results.map(tvShow => ({
+        ...tvShow,
+        title: tvShow.name,
+      }));
+    }
+
+    // Ordenar resultados por vote_average de forma descendente
+    results.sort((a, b) => b.vote_average - a.vote_average);
+
+    // Si hay más de 3 resultados, quedarnos solo con los 3 primeros
+    if (results.length > 3) {
+      results = results.slice(0, 3);
+    }
+
+    return res.json({ results });
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
-    res.status(500).json({ message: req.query });
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 });
 
