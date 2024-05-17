@@ -4,30 +4,35 @@ const router = Router();
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const configModel = "Devuelve un array con los nombres de las peliculas, series o tv shows que, a tu parecer, sean los mas adecuados. Estos tienen que estar en español de méxico, debes de darme solo el nombre de las peliculas, series o tv shows candidatas. El formato debe ser un array que contenga en cada celda el nombre como un string. El nombre de la pelicula, serie o tv show debe ser exacto, es decir, el nombre publicado oficialmente. Evita usar cualquier caracter especial que no este en el nombre. Trata de, en el caso de ser posible, dar al menos 10 nombres y no mas de 20. Tambien, si respetar el tipo, si el usuario pide peliculas debes de dar peliculas, si pide series o tv shows, debes de dar series o tv shows."
+const configModel =
+  "Tu tarea es proporcionar una lista de títulos exactos de películas, series o programas de televisión en español de México, basados en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta. Debes cumplir con los siguientes requisitos: Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión. El formato debe ser un array de strings, donde cada string es el nombre de una película, serie o programa de televisión. Evita usar cualquier carácter especial que no esté presente en el nombre oficial. Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión. Intenta proporcionar al menos 10 y no más de 20 nombres, siempre que sea posible. Por ejemplo, si un usuario describe que le gusta la ciencia ficción y las aventuras, tu respuesta debe ser un array de títulos que se ajusten a esa descripción.";
 
-const genAI = new  GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
+const genAI = new GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
 
-const model = genAI.getGenerativeModel({model: 'gemini-1.0-pro'})
+const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
   console.log(prompt);
-  if (!prompt) return res.status(400).json({ message: "No se proporcionó un prompt" });
-  prompt += configModel;
+  if (!prompt)
+    return res.status(400).json({ message: "No se proporcionó un prompt" });
+  prompt = configModel + prompt;
   const result = await model.generateContent(prompt);
   const response = await result.response;
   // Extrae el texto de la respuesta
-  console.log(response)
+  console.log(response);
   const text = response?.candidates[0]?.content?.parts[0]?.text;
 
-  if (!text) return res.status(500).json({ message: "No se pudo generar el texto" });
+  if (!text)
+    return res.status(500).json({ message: "No se pudo generar el texto" });
 
   // Divide el texto por los saltos de línea para obtener un array de nombres de películas
-  const movieNames = text?.split('\n');
+  const movieNames = text?.split("\n");
 
   // Elimina los guiones del principio de cada nombre de película, reemplaza los espacios por %20 y convierte todo a minúsculas
-  const cleanedMovieNames = movieNames.map(name => name.replace(/^- /, '').replace(/ /g, '%20').toLowerCase());
+  const cleanedMovieNames = movieNames.map((name) =>
+    name.replace(/^- /, "").replace(/ /g, "%20").toLowerCase()
+  );
 
   // Envía el array de nombres de películas como respuesta
   res.json(cleanedMovieNames);
@@ -49,6 +54,7 @@ router.get("/movies", async (req, res) => {
   };
 
   const response = await axios.request(options);
+
   res.json(response.data);
 });
 
@@ -90,28 +96,30 @@ router.get("/genres", async (req, res) => {
 router.get("/movie", async (req, res) => {
   try {
     let { movieTitle } = req.query;
-    movieTitle = movieTitle.toLowerCase().replace(/ /g, "%20");
-    console.log(movieTitle);
+    //movieTitle = movieTitle.toLowerCase().replace(/ /g, "%20");
     let options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/search/movie?include_adult=false&language=es-MX&page=1&query=${encodeURIComponent(movieTitle)}`,
+      url: `https://api.themoviedb.org/3/search/movie?include_adult=false&language=es-MX&page=1&query=${movieTitle}`,
       headers: {
         accept: "application/json",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        Authorization:
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
       },
     };
 
-    let response = await axios.request(options);
-    if(!response.data.results.length){
-      options.url = `https://api.themoviedb.org/3/search/tv?language=es-MX&query=${encodeURIComponent(movieTitle)}`
-      response = await axios.request(options);
-      console.log(response.data?.results[0].name);
-      response.data.results[0].title = response.data?.results[0].name;
-    }
-    res.json(response.data);
+    const response = await axios.request(options);
+    if (response.data.results.length) return res.json(response.data);
+
+    options.url = `https://api.themoviedb.org/3/search/tv?language=es-MX&query=${movieTitle}`;
+    const response2 = await axios.request(options);
+    if (response2.data.results.length === 0)
+      return res.status(404).json({ message: "No se encontraron resultados" });
+    //console.log(response2.data);
+    response2.data.results[0].title = response2.data?.results[0]?.name;
+    return res.json(response2.data);
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
-    res.status(500).json({ message: req.query});
+    res.status(500).json({ message: req.query });
   }
 });
 
@@ -123,7 +131,8 @@ router.get("/cast", async (req, res) => {
       url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-MX`,
       headers: {
         accept: "application/json",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        Authorization:
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
       },
     };
 
@@ -131,7 +140,9 @@ router.get("/cast", async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
-    res.status(500).json({ message: "Error al obtener detalles de la película" });
+    res
+      .status(500)
+      .json({ message: "Error al obtener detalles de la película" });
   }
 });
 
@@ -143,7 +154,8 @@ router.get("/providers", async (req, res) => {
       url: `https://api.themoviedb.org/3/movie/${movieId}/watch/providers`,
       headers: {
         accept: "application/json",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        Authorization:
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
       },
     };
 
@@ -151,9 +163,10 @@ router.get("/providers", async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
-    res.status(500).json({ message: "Error al obtener detalles de la película" });
+    res
+      .status(500)
+      .json({ message: "Error al obtener detalles de la película" });
   }
 });
-
 
 module.exports = router;
