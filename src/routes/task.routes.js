@@ -9,6 +9,10 @@ const configModel =
 
 const genAI = new GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
 
+const genAIValidation = new GoogleGenerativeAI("AIzaSyCLleOC6FZkfZkBLNfMu-GXE0_gb0Cg938");
+
+const validationModel = genAIValidation.getGenerativeModel({ model: "gemini-1.0-pro" });
+
 const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
 router.post("/generate", async (req, res) => {
@@ -17,10 +21,9 @@ router.post("/generate", async (req, res) => {
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
   prompt = configModel + prompt;
-  const result = await model.generateContent(prompt);
+  const result = await validationModel.generateContent(prompt);
   const response = await result.response;
   // Extrae el texto de la respuesta
-  console.log(response);
   const text = response?.candidates[0]?.content?.parts[0]?.text;
 
   if (!text)
@@ -255,21 +258,40 @@ router.get("/providers", async (req, res) => {
   }
 });
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff = 400) => {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result;
+    } catch (error) {
+      if (error.status === 429) {
+        attempts++;
+        await sleep(backoff * attempts);  // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
 router.post("/validate", async (req, res) => {
   const { recommendation, prompt } = req.body;
   if (!recommendation || !prompt) {
     return res.status(400).json({ message: "Faltan datos" });
   }
-  const {title, year, genres} = recommendation;
+  const {title, year, overview} = recommendation;
   const promptFinal = `
   A continuación, te proporciono la prompt ingresada por el usuario junto con la recomendación obtenida. Necesito que verifiques si la recomendación es acorde a la prompt del usuario. Si la recomendación no coincide con los criterios especificados en la prompt del usuario, por favor, indícalo para poder corregirlo.
   
   Prompt del usuario: "${prompt}"
   
   Recomendación obtenida:
-  - Título: "${title}"
-  - Año: "${year}"
-  - Géneros: "${genres.join(', ')}"
+  - Título: "${title || 'No proporcionado'}"
+  - Año: "${year || 'No proporcionado'}"
+  - Sinopsis: "${overview || 'No proporcionado'}"
   
   Tu tarea es:
   1. Revisar si la recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
@@ -282,12 +304,19 @@ router.post("/validate", async (req, res) => {
   - Si la recomendación es adecuada: "true"
   - Si la recomendación no es adecuada: "false"
   `;
-  const result = await model.generateContent(promptFinal);
-  const response = await result.response;
-  // Extrae el texto de la respuesta
-  console.log(response);
-  const text = response?.candidates[0]?.content?.parts[0]?.text;
-  res.send(text)
-})
+
+  try {
+    const result = await generateContentWithRetries(validationModel, promptFinal);
+    const response = await result?.response;
+    if (!response) {
+      return res.status(500).json({ message: "Error al consultar a la IA" });
+    }
+    const text = response?.candidates[0]?.content?.parts[0]?.text;
+    res.send(text);
+  } catch (error) {
+    console.error("Error al consultar a la IA:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
 
 module.exports = router;
