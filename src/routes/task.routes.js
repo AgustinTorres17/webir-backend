@@ -38,6 +38,7 @@ router.post("/generate", async (req, res) => {
   res.json(cleanedMovieNames);
 });
 
+
 router.get("/", async (req, res) => {
   res.send("Working");
 });
@@ -253,5 +254,40 @@ router.get("/providers", async (req, res) => {
       .json({ message: "Error al obtener detalles de la película" });
   }
 });
+
+router.post("/validate", async (req, res) => {
+  const { recommendation, prompt } = req.body;
+  if (!recommendation || !prompt) {
+    return res.status(400).json({ message: "Faltan datos" });
+  }
+  const {title, year, genres} = recommendation;
+  const promptFinal = `
+  A continuación, te proporciono la prompt ingresada por el usuario junto con la recomendación obtenida. Necesito que verifiques si la recomendación es acorde a la prompt del usuario. Si la recomendación no coincide con los criterios especificados en la prompt del usuario, por favor, indícalo para poder corregirlo.
+  
+  Prompt del usuario: "${prompt}"
+  
+  Recomendación obtenida:
+  - Título: "${title}"
+  - Año: "${year}"
+  - Géneros: "${genres.join(', ')}"
+  
+  Tu tarea es:
+  1. Revisar si la recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
+  2. Mantén en cuenta que el público es de habla hispana, por lo tanto, los nombres en inglés no serán entendidos.
+  3. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, verifica que la recomendación:
+     - Sea de una película, serie o programa de televisión en español o con un nombre reconocido en español.
+     - Cumpla con los géneros, temas o ejemplos mencionados por el usuario.
+  
+  Respuesta esperada: 
+  - Si la recomendación es adecuada: "true"
+  - Si la recomendación no es adecuada: "false"
+  `;
+  const result = await model.generateContent(promptFinal);
+  const response = await result.response;
+  // Extrae el texto de la respuesta
+  console.log(response);
+  const text = response?.candidates[0]?.content?.parts[0]?.text;
+  res.send(text)
+})
 
 module.exports = router;
