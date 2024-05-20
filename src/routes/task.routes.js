@@ -50,6 +50,76 @@ router.get("/", async (req, res) => {
   res.send("Working");
 });
 
+
+// Función para obtener el ID del género
+async function getGenreId(genreName) {
+  const response = await axios.get(`https://api.themoviedb.org/3/genre/movie/list`, {
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${TMDB_API_KEY}`
+    }
+  });
+  const genres = response.data.genres;
+  const genre = genres.find(g => g.name.toLowerCase() === genreName.toLowerCase());
+  return genre ? genre.id : null;
+}
+
+// Función para buscar películas y series por género
+async function searchByGenre(genreName, res) {
+  const genreId = await getGenreId(genreName);
+  if (!genreId) {
+    return res.status(404).json({ error: 'Genre not found' });
+  }
+
+  const movieOptions = {
+    method: "GET",
+    url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=1`,
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${TMDB_API_KEY}`
+    }
+  };
+
+  const tvOptions = {
+    method: "GET",
+    url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&with_genres=${genreId}&language=es-ES&page=1&sort_by=popularity.desc",
+    headers: {
+      accept: "application/json",
+      Authorization: `Bearer ${TMDB_API_KEY}`
+    },
+  };
+
+  try {
+    const [movieResponse, tvResponse] = await Promise.all([
+      axios.request(movieOptions),
+      axios.request(tvOptions)
+    ]);
+
+    const combinedResults = [
+      ...movieResponse.data.results.map(item => ({ ...item, type: 'movie' })),
+      ...tvResponse.data.results.map(item => ({ ...item, type: 'tv' }))
+    ];
+
+    res.json({
+      genre: genreName,
+      results: combinedResults
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error fetching movies and TV shows by genre' });
+  }
+}
+
+// Rutas para cada género
+router.get("/fantasia", (req, res) => searchByGenre('Fantasy', res));
+router.get("/accion", (req, res) => searchByGenre('Action', res));
+router.get("/terror", (req, res) => searchByGenre('Horror', res));
+router.get("/aventura", (req, res) => searchByGenre('Adventure', res));
+
+module.exports = router;
+
+
 router.get("/popular", async (req, res) => {
   const movieOptions = {
     method: "GET",
@@ -213,7 +283,7 @@ router.get("/movie", async (req, res) => {
     if (!response2.data.results.length && !results.length) {
       return res.status(404).json({ message: "No se encontraron resultados" });
     }
-    
+
     results = results.concat(
       response2.data.results.map((tvShow) => ({
         ...tvShow,
@@ -309,7 +379,7 @@ router.get("/movie-providers", async (req, res) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
- const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff = 400) => {
+const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff = 400) => {
   let attempts = 0;
   while (attempts < maxRetries) {
     try {
@@ -324,7 +394,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       }
     }
   }
-}; 
+};
 
 
 
@@ -371,7 +441,7 @@ const validateRecommendations = async (recommendations, prompt) => {
 
     const text = response?.candidates[0]?.content?.parts[0]?.text;
     if (!text) throw new Error("No se pudo generar el texto");
-    
+
     const validatedResults = text?.split("\n").map(line => line.includes("true"));
     return validatedResults;
   } catch (error) {
