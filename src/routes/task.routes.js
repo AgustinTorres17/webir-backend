@@ -5,7 +5,7 @@ require("dotenv").config();
 
 
 const TMDB_API_KEY = process.env.TMDB_KEY;
-const GOOGLE_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_KEY = process.env.GOOGLE_KEY;
 const GOOGLE_AUX_KEY = process.env.GOOGLE_AUX_KEY;
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
