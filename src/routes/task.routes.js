@@ -1,13 +1,19 @@
 const { Router } = require("express");
 const axios = require("axios");
 const router = Router();
+require("dotenv").config();
+
+
+const TMDB_API_KEY = process.env.TMDB_KEY;
+const GOOGLE_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_AUX_KEY = process.env.GOOGLE_AUX_KEY;
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const configModel =
   "Tu tarea es proporcionar una lista de títulos exactos de películas, series o programas de televisión en español. Esto es crucial porque el público es de habla hispana y los nombres en inglés no serán entendidos. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, debes cumplir con los siguientes requisitos: Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión. El formato debe ser un array de strings, donde cada string es el nombre de una película, serie o programa de televisión. Evita usar cualquier carácter especial que no esté presente en el nombre oficial y omite los números si están presentes.Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión. Intenta proporcionar al menos 10 y no más de 20 nombres, siempre que sea posible. Si el usuario menciona una película o serie como ejemplo, los títulos que debes retornar deben ser de películas o series contemporáneas o relacionadas con la mencionada por el usuario. Por ejemplo, si un usuario describe que le gusta la ciencia ficción y las aventuras, tu respuesta debe ser un array de títulos que se ajusten a esa descripción. Este es el prompt del usuario: ";
 
-const genAI = new GoogleGenerativeAI("AIzaSyAuvZtH8YF2Zg3f1_KVrBz2Dd1Awk57-MI");
+const genAI = new GoogleGenerativeAI(GOOGLE_KEY);
 
 
 const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
@@ -16,7 +22,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
-  //console.log(prompt);
+
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
   prompt = configModel + prompt;
@@ -50,7 +56,7 @@ router.get("/popular", async (req, res) => {
     url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio"
+      Authorization: "Bearer " + TMDB_API_KEY
     },
   };
 
@@ -59,7 +65,7 @@ router.get("/popular", async (req, res) => {
     url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio"
+      Authorization: "Bearer " + TMDB_API_KEY
     },
   };
 
@@ -88,7 +94,7 @@ router.get("/movies", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -104,7 +110,7 @@ router.get("/series", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -124,7 +130,7 @@ router.get("/genres", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -140,14 +146,14 @@ router.get("/movie/:id", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
   try {
     const response = await axios.request(options);
     return res.json(response.data);
   } catch (error) {
-    console.log("voy por series");
+
     options.url = `https://api.themoviedb.org/3/tv/${id}?language=es-MX`;
     try {
       const response2 = await axios.request(options);
@@ -173,7 +179,7 @@ router.get("/serie/:id", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -194,7 +200,7 @@ router.get("/movie", async (req, res) => {
       headers: {
         accept: "application/json",
         Authorization:
-          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+          "Bearer " + TMDB_API_KEY,
       },
     };
 
@@ -215,6 +221,8 @@ router.get("/movie", async (req, res) => {
       }))
     );
 
+    results = results.filter((result) => result.overview && result.overview.trim() !== '');
+
     // Ordenar resultados por vote_average de forma descendente
     results.sort((a, b) => b.popularity - a.popularity);
 
@@ -222,8 +230,6 @@ router.get("/movie", async (req, res) => {
     if (results.length > 3) {
       results = results.slice(0, 3);
     }
-
-    console.log(results);
 
     const validatedResults = await validateRecommendations(results, movieTitle);
 
@@ -244,7 +250,7 @@ router.get("/movie/cast/:movieId", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -265,7 +271,7 @@ router.get("/serie/cast/:serieId", async (req, res) => {
     headers: {
       accept: "application/json",
       Authorization:
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+        "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -287,7 +293,7 @@ router.get("/movie-providers", async (req, res) => {
       headers: {
         accept: "application/json",
         Authorization:
-          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+          "Bearer " + TMDB_API_KEY,
       },
     };
 
@@ -383,7 +389,7 @@ router.get("/serie-providers", async (req, res) => {
       headers: {
         accept: "application/json",
         Authorization:
-          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+          "Bearer " + TMDB_API_KEY,
       },
     };
 
