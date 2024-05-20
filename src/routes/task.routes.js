@@ -9,7 +9,17 @@ const configModel =
 
 const genAI = new GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
 
+const genAIValidation = new GoogleGenerativeAI(
+  "AIzaSyCLleOC6FZkfZkBLNfMu-GXE0_gb0Cg938"
+);
+
+const validationModel = genAIValidation.getGenerativeModel({
+  model: "gemini-1.0-pro",
+});
+
 const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+
+
 
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
@@ -17,10 +27,9 @@ router.post("/generate", async (req, res) => {
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
   prompt = configModel + prompt;
-  const result = await model.generateContent(prompt);
+  const result = await validationModel.generateContent(prompt);
   const response = await result.response;
   // Extrae el texto de la respuesta
-  console.log(response);
   const text = response?.candidates[0]?.content?.parts[0]?.text;
 
   if (!text)
@@ -37,7 +46,6 @@ router.post("/generate", async (req, res) => {
   // Envía el array de nombres de películas como respuesta
   res.json(cleanedMovieNames);
 });
-
 
 router.get("/", async (req, res) => {
   res.send("Working");
@@ -171,7 +179,8 @@ router.get("/serie/:id", async (req, res) => {
     url: `https://api.themoviedb.org/3/tv/${id}?language=es-ES`,
     headers: {
       accept: "application/json",
-      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
+      Authorization:
+        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio",
     },
   };
   try {
@@ -181,7 +190,7 @@ router.get("/serie/:id", async (req, res) => {
     console.error("Error al obtener detalles de la película:", error);
     res.status(500).json({ message: "Error interno del servidor" });
   }
-}) 
+});
 
 router.get("/movie", async (req, res) => {
   try {
@@ -205,10 +214,12 @@ router.get("/movie", async (req, res) => {
     if (!response2.data.results.length) {
       return res.status(404).json({ message: "No se encontraron resultados" });
     }
-    results = results.concat(response2.data.results.map((tvShow) => ({
-      ...tvShow,
-      title: tvShow.name,
-    })));
+    results = results.concat(
+      response2.data.results.map((tvShow) => ({
+        ...tvShow,
+        title: tvShow.name,
+      }))
+    );
 
     // Ordenar resultados por vote_average de forma descendente
     results.sort((a, b) => b.popularity - a.popularity);
@@ -244,12 +255,12 @@ router.get("/movie/cast/:movieId", async (req, res) => {
   } catch (error) {
     res
       .status(500)
-      .json({ message: "Error al obtener detalles de la película" }); 
+      .json({ message: "Error al obtener detalles de la película" });
   }
 });
 
 router.get("/serie/cast/:serieId", async (req, res) => {
-  const {serieId}  = req.params;
+  const { serieId } = req.params;
   let options = {
     method: "GET",
     url: `https://api.themoviedb.org/3/tv/${serieId}/credits?language=es-MX`,
@@ -292,6 +303,88 @@ router.get("/movie-providers", async (req, res) => {
   }
 });
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+ const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff = 400) => {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      const result = await model.generateContent(prompt);
+      return result;
+    } catch (error) {
+      if (error.status === 429) {
+        attempts++;
+        await sleep(backoff * attempts);  // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+}; 
+
+
+
+
+
+router.post("/validate", async (req, res) => {
+  
+  const { recommendations, prompt } = req.body;
+  if (!recommendations || !prompt) {
+    return res.status(400).json({ message: "Faltan datos" });
+  }
+
+  const promptFinal = recommendations.map(recommendation => {
+    let { title, year, overview } = recommendation;
+
+    title = title || "No proporcionado";
+    year = year || "No proporcionado";
+    overview = overview || "No proporcionado";
+
+    return `
+      Prompt del usuario: "${prompt}"
+      Recomendación obtenida:
+      - Título: "${title}"
+      - Año: "${year}"
+      - Sinopsis: "${overview}"
+    `;
+  }).join("\n");
+
+  const promptComplete = `
+    A continuación, te proporciono la prompt ingresada por el usuario junto con las recomendaciones obtenidas. Necesito que verifiques si cada recomendación es acorde a la prompt del usuario.
+    ${promptFinal}
+    Tu tarea es:
+    1. Revisar si cada recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
+    2. Mantén en cuenta que el público es de habla hispana, por lo tanto, los nombres en inglés no serán entendidos.
+    3. Ten en cuenta el año y la sinópsis de cada recomendación para verificar si se ajusta a los criterios mencionados por el usuario. Si el año no corresponde con la película o la sinópsis no coincide con los géneros o temas mencionados por el usuario, la recomendación no es adecuada.
+    4. Si no tienes los suficientes datos para verificar la recomendación, considera que no es adecuada.
+    Respuesta esperada: 
+    - Si la recomendación es adecuada: "true"
+    - Si la recomendación no es adecuada: "false"
+    - Si no estás seguro: "false"
+    No respondas otra información adicional, solo "true", "false".
+  `;
+
+  try {
+    const result = await generateContentWithRetries(validationModel, promptComplete);
+    const response = await result?.response;
+
+    if (!response) {
+      return res.status(500).json({ message: "Error al consultar a la IA" });
+    }
+
+    const text = response?.candidates[0]?.content?.parts[0]?.text;
+    //return res.send(text);
+    if (!text) return res.status(500).json({ message: "No se pudo generar el texto" });
+    const validatedResults = text?.split("\n").map(line => line.includes("true"));
+    return res.json(validatedResults);
+  } catch (error) {
+    console.error("Error al consultar a la IA:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+
+
 router.get("/serie-providers", async (req, res) => {
   try {
     const { serieId } = req.query;
@@ -314,43 +407,5 @@ router.get("/serie-providers", async (req, res) => {
       .json({ message: "Error al obtener detalles de la película" });
   }
 });
-
-
-
-router.post("/validate", async (req, res) => {
-  const { recommendation, prompt } = req.body;
-  if (!recommendation || !prompt) {
-    return res.status(400).json({ message: "Faltan datos" });
-  }
-  const {title, year, genres} = recommendation;
-  const promptFinal = `
-  A continuación, te proporciono la prompt ingresada por el usuario junto con la recomendación obtenida. Necesito que verifiques si la recomendación es acorde a la prompt del usuario. Si la recomendación no coincide con los criterios especificados en la prompt del usuario, por favor, indícalo para poder corregirlo.
-  
-  Prompt del usuario: "${prompt}"
-  
-  Recomendación obtenida:
-  - Título: "${title}"
-  - Año: "${year}"
-  - Géneros: "${genres.join(', ')}"
-  
-  Tu tarea es:
-  1. Revisar si la recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
-  2. Mantén en cuenta que el público es de habla hispana, por lo tanto, los nombres en inglés no serán entendidos.
-  3. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, verifica que la recomendación:
-     - Sea de una película, serie o programa de televisión en español o con un nombre reconocido en español.
-     - Cumpla con los géneros, temas o ejemplos mencionados por el usuario.
-
-  
-  Respuesta esperada: 
-  - Si la recomendación es adecuada: "true"
-  - Si la recomendación no es adecuada: "false"
-  `;
-  const result = await model.generateContent(promptFinal);
-  const response = await result.response;
-  // Extrae el texto de la respuesta
-  console.log(response);
-  const text = response?.candidates[0]?.content?.parts[0]?.text;
-  res.send(text)
-})
 
 module.exports = router;
