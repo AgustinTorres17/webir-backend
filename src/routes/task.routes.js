@@ -43,6 +43,43 @@ router.get("/", async (req, res) => {
   res.send("Working");
 });
 
+router.get("/popular", async (req, res) => {
+  const movieOptions = {
+    method: "GET",
+    url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio"
+    },
+  };
+
+  const tvOptions = {
+    method: "GET",
+    url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&language=es-ES&page=1&sort_by=popularity.desc",
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwYmUzOTliYjZmZDY0NDMxYjNiYmUzNThiODUyODRjNyIsInN1YiI6IjY1OTA4ZDI2Y2U0ZGRjNmVkNTdkNWM2YiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.hDyxnpPH2gk96U1Kl_8-53fAI5L47FiqJwjYzDyiqio"
+    },
+  };
+
+  try {
+    const [movieResponse, tvResponse] = await Promise.all([
+      axios.request(movieOptions),
+      axios.request(tvOptions)
+    ]);
+
+    res.json({
+      movies: movieResponse.data.results,
+      tvShows: tvResponse.data.results
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error fetching popular movies and TV shows' });
+  }
+});
+
+module.exports = router;
+
 router.get("/movies", async (req, res) => {
   const options = {
     method: "GET",
