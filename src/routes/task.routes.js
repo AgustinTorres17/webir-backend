@@ -7,15 +7,8 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const configModel =
   "Tu tarea es proporcionar una lista de títulos exactos de películas, series o programas de televisión en español. Esto es crucial porque el público es de habla hispana y los nombres en inglés no serán entendidos. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, debes cumplir con los siguientes requisitos: Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión. El formato debe ser un array de strings, donde cada string es el nombre de una película, serie o programa de televisión. Evita usar cualquier carácter especial que no esté presente en el nombre oficial y omite los números si están presentes.Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión. Intenta proporcionar al menos 10 y no más de 20 nombres, siempre que sea posible. Si el usuario menciona una película o serie como ejemplo, los títulos que debes retornar deben ser de películas o series contemporáneas o relacionadas con la mencionada por el usuario. Por ejemplo, si un usuario describe que le gusta la ciencia ficción y las aventuras, tu respuesta debe ser un array de títulos que se ajusten a esa descripción. Este es el prompt del usuario: ";
 
-const genAI = new GoogleGenerativeAI("AIzaSyAuYrl-PtzBQNJL-V61QAe-OHZhGwiaV6o");
+const genAI = new GoogleGenerativeAI("AIzaSyAuvZtH8YF2Zg3f1_KVrBz2Dd1Awk57-MI");
 
-const genAIValidation = new GoogleGenerativeAI(
-  "AIzaSyCLleOC6FZkfZkBLNfMu-GXE0_gb0Cg938"
-);
-
-const validationModel = genAIValidation.getGenerativeModel({
-  model: "gemini-1.0-pro",
-});
 
 const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
@@ -27,7 +20,7 @@ router.post("/generate", async (req, res) => {
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
   prompt = configModel + prompt;
-  const result = await validationModel.generateContent(prompt);
+  const result = await model.generateContent(prompt);
   const response = await result.response;
   // Extrae el texto de la respuesta
   const text = response?.candidates[0]?.content?.parts[0]?.text;
@@ -174,9 +167,10 @@ router.get("/movie", async (req, res) => {
     // Si no hay resultados de películas, buscar series de TV
     options.url = `https://api.themoviedb.org/3/search/tv?query=${movieTitle}&page=1&language=es-MX`;
     const response2 = await axios.request(options);
-    if (!response2.data.results.length) {
+    if (!response2.data.results.length && !results.length) {
       return res.status(404).json({ message: "No se encontraron resultados" });
     }
+    
     results = results.concat(
       response2.data.results.map((tvShow) => ({
         ...tvShow,
@@ -188,13 +182,17 @@ router.get("/movie", async (req, res) => {
     results.sort((a, b) => b.popularity - a.popularity);
 
     // Si hay más de 3 resultados, quedarnos solo con los 3 primeros
-    if (results.length >= 3) {
+    if (results.length > 3) {
       results = results.slice(0, 3);
     }
 
-    /* console.log(results); */
+    console.log(results);
 
-    return res.json({ results });
+    const validatedResults = await validateRecommendations(results, movieTitle);
+
+    const finalResults = results.filter((_, index) => validatedResults[index]);
+
+    return res.json({ results: finalResults });
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
     res.status(500).json({ message: "Error interno del servidor" });
@@ -289,26 +287,20 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 
 
-router.post("/validate", async (req, res) => {
-  
-  const { recommendations, prompt } = req.body;
-  if (!recommendations || !prompt) {
-    return res.status(400).json({ message: "Faltan datos" });
-  }
-
+const validateRecommendations = async (recommendations, prompt) => {
   const promptFinal = recommendations.map(recommendation => {
     let { title, year, overview } = recommendation;
 
-    title = title || "No proporcionado";
-    year = year || "No proporcionado";
-    overview = overview || "No proporcionado";
+    title = title || "-";
+    year = year || "-";
+    overview = overview || "-";
 
     return `
       Prompt del usuario: "${prompt}"
       Recomendación obtenida:
       - Título: "${title}"
       - Año: "${year}"
-      - Sinopsis: "${overview}"
+      - Sinópsis: "${overview}"
     `;
   }).join("\n");
 
@@ -319,7 +311,6 @@ router.post("/validate", async (req, res) => {
     1. Revisar si cada recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
     2. Mantén en cuenta que el público es de habla hispana, por lo tanto, los nombres en inglés no serán entendidos.
     3. Ten en cuenta el año y la sinópsis de cada recomendación para verificar si se ajusta a los criterios mencionados por el usuario. Si el año no corresponde con la película o la sinópsis no coincide con los géneros o temas mencionados por el usuario, la recomendación no es adecuada.
-    4. Si no tienes los suficientes datos para verificar la recomendación, considera que no es adecuada.
     Respuesta esperada: 
     - Si la recomendación es adecuada: "true"
     - Si la recomendación no es adecuada: "false"
@@ -328,24 +319,22 @@ router.post("/validate", async (req, res) => {
   `;
 
   try {
-    const result = await generateContentWithRetries(validationModel, promptComplete);
+    const result = await generateContentWithRetries(model, promptComplete);
     const response = await result?.response;
 
     if (!response) {
-      return res.status(500).json({ message: "Error al consultar a la IA" });
+      throw new Error("Error al consultar a la IA");
     }
 
     const text = response?.candidates[0]?.content?.parts[0]?.text;
-    //return res.send(text);
-    if (!text) return res.status(500).json({ message: "No se pudo generar el texto" });
+    if (!text) throw new Error("No se pudo generar el texto");
+    
     const validatedResults = text?.split("\n").map(line => line.includes("true"));
-    return res.json(validatedResults);
+    return validatedResults;
   } catch (error) {
-    console.error("Error al consultar a la IA:", error);
-    res.status(500).json({ message: "Error interno del servidor" });
+    throw new Error("Error al consultar a la IA: " + error.message);
   }
-});
-
+};
 
 
 router.get("/serie-providers", async (req, res) => {
