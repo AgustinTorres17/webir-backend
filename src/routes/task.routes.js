@@ -73,7 +73,7 @@ async function searchByGenre(genreName, res) {
 
   const movieOptions = {
     method: "GET",
-    url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=1`,
+    url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=5`,
     headers: {
       accept: "application/json",
       Authorization: `Bearer ${TMDB_API_KEY}`
@@ -82,7 +82,7 @@ async function searchByGenre(genreName, res) {
 
   const tvOptions = {
     method: "GET",
-    url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&with_genres=${genreId}&language=es-ES&page=1&sort_by=popularity.desc",
+    url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}include_adult=false&language=es-ES&page=1&sort_by=popularity.desc`,
     headers: {
       accept: "application/json",
       Authorization: `Bearer ${TMDB_API_KEY}`
