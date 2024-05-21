@@ -53,15 +53,20 @@ router.get("/", async (req, res) => {
 
 // Función para obtener el ID del género
 async function getGenreId(genreName) {
-  const response = await axios.get(`https://api.themoviedb.org/3/genre/movie/list`, {
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_KEY}`
-    }
-  });
-  const genres = response.data.genres;
-  const genre = genres.find(g => g.name.toLowerCase() === genreName.toLowerCase());
-  return genre ? genre.id : null;
+  try {
+    const response = await axios.get(`https://api.themoviedb.org/3/genre/movie/list`, {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${TMDB_API_KEY}`
+      }
+    });
+    const genres = response.data.genres;
+    const genre = genres.find(g => g.name.toLowerCase() === genreName.toLowerCase());
+    return genre ? genre.id : null;
+  } catch (error) {
+    console.error('Error fetching genre ID:', error);
+    return null;
+  }
 }
 
 // Función para buscar películas y series por género
@@ -71,33 +76,42 @@ async function searchByGenre(genreName, res) {
     return res.status(404).json({ error: 'Genre not found' });
   }
 
-  const movieOptions = {
-    method: "GET",
-    url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=5`,
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_KEY}`
-    }
-  };
-
-  const tvOptions = {
-    method: "GET",
-    url: `https://api.themoviedb.org/3/discover/tv?include_adult=false&with_genres=${genreId}&language=es-MX&page=1&sort_by=popularity.desc`,
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${TMDB_API_KEY}`
-    },
-  };
+  const maxPages = 5; // Número máximo de páginas a obtener
+  let movieResults = [];
+  let tvResults = [];
 
   try {
-    const [movieResponse, tvResponse] = await Promise.all([
-      axios.request(movieOptions),
-      axios.request(tvOptions)
-    ]);
+    for (let page = 1; page <= maxPages; page++) {
+      const movieOptions = {
+        method: "GET",
+        url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=${page}`,
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${TMDB_API_KEY}`
+        }
+      };
+
+      const tvOptions = {
+        method: "GET",
+        url: `https://api.themoviedb.org/3/discover/tv?include_adult=false&with_genres=${genreId}&language=es-MX&page=${page}&sort_by=popularity.desc`,
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${TMDB_API_KEY}`
+        },
+      };
+
+      const [movieResponse, tvResponse] = await Promise.all([
+        axios.request(movieOptions),
+        axios.request(tvOptions)
+      ]);
+
+      movieResults = movieResults.concat(movieResponse.data.results);
+      tvResults = tvResults.concat(tvResponse.data.results);
+    }
 
     const combinedResults = [
-      ...movieResponse.data.results.map(item => ({ ...item, type: 'movie' })),
-      ...tvResponse.data.results.map(item => ({ ...item, type: 'tv' }))
+      ...movieResults.map(item => ({ ...item, type: 'movie' })),
+      ...tvResults.map(item => ({ ...item, type: 'tv' }))
     ];
 
     res.json({
