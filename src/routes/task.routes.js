@@ -55,6 +55,17 @@ const tv_genres = [
   },
 ];
 
+const filterArrayContent = (array) => {
+  const wordsProhibited = ["porn", "porno"];
+  let res = array;
+  wordsProhibited.map((word) => {
+    res = res.filter((item) =>
+      !item.overview.trim().toLowerCase().includes(word)
+    );
+  });
+  return res;
+};
+
 const fetchTvListHome = async () => {
   const tvList = await Promise.all(
     tv_genres.map(async (genre) => {
@@ -73,7 +84,29 @@ const fetchTvListHome = async () => {
       };
     })
   );
-  return tvList;
+  const tvListFilter = filterArrayContent(tvList);
+  return tvListFilter;
+};
+
+const fetchTvByGenre = async (genre) => {
+  const genreId = tv_genres.find((g) =>
+    g.name.toLowerCase().trim().includes(genre.toLowerCase())
+  )?.id;
+  if (!genreId) return [];
+  let seriesGenre = [];
+  for (let i = 1; i <= 5; i++) {
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}&include_adult=false&language=es-ES&page=${i}&sort_by=popularity.desc`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer " + TMDB_API_KEY,
+      },
+    };
+    const response = await axios.request(options);
+    seriesGenre = seriesGenre?.concat(response.data.results);
+  }
+  return seriesGenre;
 };
 
 router.post("/generate", async (req, res) => {
@@ -157,7 +190,6 @@ async function searchByGenre(genreName) {
   }
 }
 
-
 const fetchPopularData = async () => {
   const movieOptions = {
     method: "GET",
@@ -237,6 +269,36 @@ router.get("/genres", async (req, res) => {
 
   const response = await axios.request(options);
   res.json(response.data);
+});
+
+router.get("/genre", async (req, res) => {
+  const { genre } = req.query;
+  const genreId = await getGenreId(genre);
+  let respuesta = [];
+  for (let i = 1; i <= 5; i++) {
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-ES&page=${i}&sort_by=popularity.desc`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer " + TMDB_API_KEY,
+      },
+    };
+    try {
+      const response = await axios.request(options);
+      respuesta = respuesta?.concat(response.data.results);
+    } catch (error) {
+      console.error("Error al obtener las películas por género:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  }
+  respuesta = filterArrayContent(respuesta);
+  const seriesGenre = await fetchTvByGenre(genre);
+  respuesta = shuffleArray(respuesta?.concat(seriesGenre));
+  respuesta = respuesta.filter(
+    (result) => result.overview && result.overview.trim() !== ""
+  );
+  res.json(respuesta);
 });
 
 router.get("/movie/:id", async (req, res) => {
@@ -504,10 +566,10 @@ router.get("/serie-providers", async (req, res) => {
 
 function shuffleArray(array) {
   for (var i = array.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var temp = array[i];
-      array[i] = array[j];
-      array[j] = temp;
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
   }
   return array;
 }
@@ -541,7 +603,9 @@ router.get("/get-data-home", async (req, res) => {
     const mixedHorror = horrorMovies.concat(horrorSeries.results);
     respuesta.horrorPelis = shuffleArray(mixedHorror);
     const adventureMovies = await searchByGenre("Adventure");
-    const adventureSeries = tvList.find((tv) => tv.genre === "Action & Adventure");
+    const adventureSeries = tvList.find(
+      (tv) => tv.genre === "Action & Adventure"
+    );
     const mixedAdventure = adventureMovies.concat(adventureSeries.results);
     respuesta.aventuraPelis = shuffleArray(mixedAdventure);
     res.json(respuesta);
