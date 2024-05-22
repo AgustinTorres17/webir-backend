@@ -3,7 +3,6 @@ const axios = require("axios");
 const router = Router();
 require("dotenv").config();
 
-
 const TMDB_API_KEY = process.env.TMDB_KEY;
 const GOOGLE_KEY = process.env.GOOGLE_KEY;
 const GOOGLE_AUX_KEY = process.env.GOOGLE_AUX_KEY;
@@ -15,10 +14,67 @@ const configModel =
 
 const genAI = new GoogleGenerativeAI(`${GOOGLE_KEY}`);
 
-
 const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
 
+const tv_genres = [
+  {
+    id: 10759,
+    name: "Action & Adventure",
+  },
+  {
+    id: 16,
+    name: "Animation",
+  },
+  {
+    id: 35,
+    name: "Comedy",
+  },
+  {
+    id: 80,
+    name: "Crime",
+  },
+  {
+    id: 99,
+    name: "Documentary",
+  },
+  {
+    id: 9648,
+    name: "Mystery",
+  },
+  {
+    id: 10764,
+    name: "Reality",
+  },
+  {
+    id: 10765,
+    name: "Fantasy",
+  },
+  {
+    id: 10768,
+    name: "War & Politics",
+  },
+];
 
+const fetchTvListHome = async () => {
+  const tvList = await Promise.all(
+    tv_genres.map(async (genre) => {
+      const options = {
+        method: "GET",
+        url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genre.id}&include_adult=false&language=es-ES&page=1&sort_by=popularity.desc`,
+        headers: {
+          accept: "application/json",
+          Authorization: "Bearer " + TMDB_API_KEY,
+        },
+      };
+      const response = await axios.request(options);
+      return {
+        genre: genre.name,
+        results: response.data.results,
+      };
+    })
+  );
+  return tvList;
+};
 
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
@@ -50,35 +106,35 @@ router.get("/", async (req, res) => {
   res.send("Working");
 });
 
-
 // Función para obtener el ID del género
 async function getGenreId(genreName) {
   try {
-    const response = await axios.get(`https://api.themoviedb.org/3/genre/movie/list`, {
-      headers: {
-        accept: "application/json",
-        Authorization: `Bearer ${TMDB_API_KEY}`
+    const response = await axios.get(
+      `https://api.themoviedb.org/3/genre/movie/list`,
+      {
+        headers: {
+          accept: "application/json",
+          Authorization: `Bearer ${TMDB_API_KEY}`,
+        },
       }
-    });
+    );
     const genres = response.data.genres;
-    const genre = genres.find(g => g.name.toLowerCase() === genreName.toLowerCase());
+    const genre = genres.find(
+      (g) => g.name.toLowerCase() === genreName.toLowerCase()
+    );
     return genre ? genre.id : null;
   } catch (error) {
-    console.error('Error fetching genre ID:', error);
+    console.error("Error fetching genre ID:", error);
     return null;
   }
 }
 
 // Función para buscar películas y series por género
-async function searchByGenre(genreName, res) {
+async function searchByGenre(genreName) {
   const genreId = await getGenreId(genreName);
-  if (!genreId) {
-    return res.status(404).json({ error: 'Genre not found' });
-  }
 
-  const maxPages = 5; // Número máximo de páginas a obtener
+  const maxPages = 4; // Número máximo de páginas a obtener
   let movieResults = [];
-  let tvResults = [];
 
   try {
     for (let page = 1; page <= maxPages; page++) {
@@ -87,60 +143,28 @@ async function searchByGenre(genreName, res) {
         url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-MX&page=${page}`,
         headers: {
           accept: "application/json",
-          Authorization: `Bearer ${TMDB_API_KEY}`
-        }
-      };
-
-      const tvOptions = {
-        method: "GET",
-        url: `https://api.themoviedb.org/3/discover/tv?include_adult=false&with_genres=${genreId}&language=es-MX&page=${page}&sort_by=popularity.desc`,
-        headers: {
-          accept: "application/json",
-          Authorization: `Bearer ${TMDB_API_KEY}`
+          Authorization: `Bearer ${TMDB_API_KEY}`,
         },
       };
 
-      const [movieResponse, tvResponse] = await Promise.all([
-        axios.request(movieOptions),
-        axios.request(tvOptions)
-      ]);
-
+      const movieResponse = await axios.request(movieOptions);
       movieResults = movieResults.concat(movieResponse.data.results);
-      tvResults = tvResults.concat(tvResponse.data.results);
     }
-
-    const combinedResults = [
-      ...movieResults.map(item => ({ ...item, type: 'movie' })),
-      ...tvResults.map(item => ({ ...item, type: 'tv' }))
-    ];
-
-    res.json({
-      genre: genreName,
-      results: combinedResults
-    });
-
+    return movieResults;
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error fetching movies and TV shows by genre' });
+    return null;
   }
 }
 
-// Rutas para cada género
-router.get("/fantasia", (req, res) => searchByGenre('Fantasy', res));
-router.get("/accion", (req, res) => searchByGenre('Action', res));
-router.get("/terror", (req, res) => searchByGenre('Horror', res));
-router.get("/aventura", (req, res) => searchByGenre('Adventure', res));
 
-module.exports = router;
-
-
-router.get("/popular", async (req, res) => {
+const fetchPopularData = async () => {
   const movieOptions = {
     method: "GET",
     url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization: "Bearer " + TMDB_API_KEY
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -149,52 +173,46 @@ router.get("/popular", async (req, res) => {
     url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization: "Bearer " + TMDB_API_KEY
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
 
   try {
     const [movieResponse, tvResponse] = await Promise.all([
       axios.request(movieOptions),
-      axios.request(tvOptions)
+      axios.request(tvOptions),
     ]);
 
-    res.json({
+    return {
       movies: movieResponse.data.results,
-      tvShows: tvResponse.data.results
-    });
+      tvShows: tvResponse.data.results,
+    };
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Error fetching popular movies and TV shows' });
+    return null;
   }
-});
+};
 
-module.exports = router;
-
-router.get("/movies", async (req, res) => {
+const fetchMovies = async () => {
   const options = {
     method: "GET",
     url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
-
   const response = await axios.request(options);
+  return response.data.results;
+};
 
-  res.json(response.data);
-});
-
-router.get("/series", async (req, res) => {
+const fetchSeries = async () => {
   const options = {
     method: "GET",
     url: "https://api.themoviedb.org/3/discover/tv?include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -204,8 +222,8 @@ router.get("/series", async (req, res) => {
     release_date: series.first_air_date,
     title: series.name,
   }));
-  res.json({ ...response.data, results: series });
-});
+  return series;
+};
 
 router.get("/genres", async (req, res) => {
   const options = {
@@ -213,8 +231,7 @@ router.get("/genres", async (req, res) => {
     url: `https://api.themoviedb.org/3/genre/movie/list?language=es-ES`,
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
 
@@ -229,15 +246,13 @@ router.get("/movie/:id", async (req, res) => {
     url: `https://api.themoviedb.org/3/movie/${id}?language=es-ES`,
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
   try {
     const response = await axios.request(options);
     return res.json(response.data);
   } catch (error) {
-
     options.url = `https://api.themoviedb.org/3/tv/${id}?language=es-MX`;
     try {
       const response2 = await axios.request(options);
@@ -262,8 +277,7 @@ router.get("/serie/:id", async (req, res) => {
     url: `https://api.themoviedb.org/3/tv/${id}?language=es-ES`,
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -283,8 +297,7 @@ router.get("/movie", async (req, res) => {
       url: `https://api.themoviedb.org/3/search/movie?query=${movieTitle}&page=1&language=es-MX`,
       headers: {
         accept: "application/json",
-        Authorization:
-          "Bearer " + TMDB_API_KEY,
+        Authorization: "Bearer " + TMDB_API_KEY,
       },
     };
 
@@ -305,7 +318,9 @@ router.get("/movie", async (req, res) => {
       }))
     );
 
-    results = results.filter((result) => result.overview && result.overview.trim() !== '');
+    results = results.filter(
+      (result) => result.overview && result.overview.trim() !== ""
+    );
 
     // Ordenar resultados por vote_average de forma descendente
     results.sort((a, b) => b.popularity - a.popularity);
@@ -333,8 +348,7 @@ router.get("/movie/cast/:movieId", async (req, res) => {
     url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-MX`,
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -354,8 +368,7 @@ router.get("/serie/cast/:serieId", async (req, res) => {
     url: `https://api.themoviedb.org/3/tv/${serieId}/credits?language=es-MX`,
     headers: {
       accept: "application/json",
-      Authorization:
-        "Bearer " + TMDB_API_KEY,
+      Authorization: "Bearer " + TMDB_API_KEY,
     },
   };
   try {
@@ -376,8 +389,7 @@ router.get("/movie-providers", async (req, res) => {
       url: `https://api.themoviedb.org/3/movie/${movieId}/watch/providers`,
       headers: {
         accept: "application/json",
-        Authorization:
-          "Bearer " + TMDB_API_KEY,
+        Authorization: "Bearer " + TMDB_API_KEY,
       },
     };
 
@@ -393,7 +405,12 @@ router.get("/movie-providers", async (req, res) => {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff = 400) => {
+const generateContentWithRetries = async (
+  model,
+  prompt,
+  maxRetries = 2,
+  backoff = 400
+) => {
   let attempts = 0;
   while (attempts < maxRetries) {
     try {
@@ -402,7 +419,7 @@ const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff
     } catch (error) {
       if (error.status === 429) {
         attempts++;
-        await sleep(backoff * attempts);  // Exponential backoff
+        await sleep(backoff * attempts); // Exponential backoff
       } else {
         throw error;
       }
@@ -410,26 +427,24 @@ const generateContentWithRetries = async (model, prompt, maxRetries = 2, backoff
   }
 };
 
-
-
-
-
 const validateRecommendations = async (recommendations, prompt) => {
-  const promptFinal = recommendations.map(recommendation => {
-    let { title, year, overview } = recommendation;
+  const promptFinal = recommendations
+    .map((recommendation) => {
+      let { title, year, overview } = recommendation;
 
-    title = title || "-";
-    year = year || "-";
-    overview = overview || "-";
+      title = title || "-";
+      year = year || "-";
+      overview = overview || "-";
 
-    return `
+      return `
       Prompt del usuario: "${prompt}"
       Recomendación obtenida:
       - Título: "${title}"
       - Año: "${year}"
       - Sinópsis: "${overview}"
     `;
-  }).join("\n");
+    })
+    .join("\n");
 
   const promptComplete = `
     A continuación, te proporciono la prompt ingresada por el usuario junto con las recomendaciones obtenidas. Necesito que verifiques si cada recomendación es acorde a la prompt del usuario.
@@ -456,13 +471,14 @@ const validateRecommendations = async (recommendations, prompt) => {
     const text = response?.candidates[0]?.content?.parts[0]?.text;
     if (!text) throw new Error("No se pudo generar el texto");
 
-    const validatedResults = text?.split("\n").map(line => line.includes("true"));
+    const validatedResults = text
+      ?.split("\n")
+      .map((line) => line.includes("true"));
     return validatedResults;
   } catch (error) {
     throw new Error("Error al consultar a la IA: " + error.message);
   }
 };
-
 
 router.get("/serie-providers", async (req, res) => {
   try {
@@ -472,8 +488,7 @@ router.get("/serie-providers", async (req, res) => {
       url: `https://api.themoviedb.org/3/tv/${serieId}/watch/providers`,
       headers: {
         accept: "application/json",
-        Authorization:
-          "Bearer " + TMDB_API_KEY,
+        Authorization: "Bearer " + TMDB_API_KEY,
       },
     };
 
@@ -484,6 +499,49 @@ router.get("/serie-providers", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
+router.get("/get-data-home", async (req, res) => {
+  const respuesta = {};
+  try {
+    const popularData = await fetchPopularData();
+    respuesta.popularData = popularData;
+    const movies = await fetchMovies();
+    respuesta.pelis = movies;
+    const series = await fetchSeries();
+    respuesta.tvs = series;
+    const fantasyMovies = await searchByGenre("Fantasy");
+    const tvList = await fetchTvListHome();
+    const fantasySeries = tvList.find((tv) => tv.genre === "Fantasy");
+    const mixedFantasy = fantasyMovies.concat(fantasySeries.results);
+    mixedFantasy.sort((a, b) => b.popularity - a.popularity);
+    respuesta.fantasiaPelis = mixedFantasy;
+    const actionMovies = await searchByGenre("Action");
+    respuesta.accionPelis = actionMovies;
+    const comedyMovies = await searchByGenre("Comedy");
+    const comedySeries = tvList.find((tv) => tv.genre === "Comedy");
+    const mixedComedy = comedyMovies.concat(comedySeries.results);
+    mixedComedy.sort((a, b) => b.popularity - a.popularity);
+    respuesta.comediaPelis = mixedComedy;
+    const documentaries = tvList.find((tv) => tv.genre === "Documentary");
+    const warAndPolitics = tvList.find((tv) => tv.genre === "War & Politics");
+    const mixedDocs = documentaries.results.concat(warAndPolitics.results);
+    mixedDocs.sort((a, b) => b.popularity - a.popularity);
+    respuesta.docs = mixedDocs;
+    const horrorMovies = await searchByGenre("Horror");
+    const horrorSeries = tvList.find((tv) => tv.genre === "Crime");
+    const mixedHorror = horrorMovies.concat(horrorSeries.results);
+    mixedHorror.sort((a, b) => b.popularity - a.popularity);
+    respuesta.horrorPelis = mixedHorror;
+    const adventureMovies = await searchByGenre("Adventure");
+    const adventureSeries = tvList.find((tv) => tv.genre === "Action & Adventure");
+    const mixedAdventure = adventureMovies.concat(adventureSeries.results);
+    mixedAdventure.sort((a, b) => b.popularity - a.popularity);
+    respuesta.aventuraPelis = mixedAdventure;
+    res.json(respuesta);
+  } catch (error) {
+    console.error("Error al obtener los datos del home");
   }
 });
 
