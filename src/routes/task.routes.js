@@ -55,16 +55,7 @@ const tv_genres = [
   },
 ];
 
-const filterArrayContent = (array) => {
-  const wordsProhibited = ["porn", "porno"];
-  let res = array;
-  wordsProhibited.map((word) => {
-    res = res.filter((item) =>
-      !item.overview.trim().toLowerCase().includes(word)
-    );
-  });
-  return res;
-};
+
 
 const fetchTvListHome = async () => {
   const tvList = await Promise.all(
