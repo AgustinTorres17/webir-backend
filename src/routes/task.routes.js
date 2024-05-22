@@ -345,7 +345,7 @@ router.get("/movie/cast/:movieId", async (req, res) => {
   const { movieId } = req.params;
   let options = {
     method: "GET",
-    url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-MX`,
+    url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-ES`,
     headers: {
       accept: "application/json",
       Authorization: "Bearer " + TMDB_API_KEY,
@@ -502,43 +502,48 @@ router.get("/serie-providers", async (req, res) => {
   }
 });
 
+function shuffleArray(array) {
+  for (var i = array.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = array[i];
+      array[i] = array[j];
+      array[j] = temp;
+  }
+  return array;
+}
+
 router.get("/get-data-home", async (req, res) => {
   const respuesta = {};
   try {
     const popularData = await fetchPopularData();
-    respuesta.popularData = popularData;
+    respuesta.popularData = shuffleArray(popularData);
     const movies = await fetchMovies();
-    respuesta.pelis = movies;
+    respuesta.pelis = shuffleArray(movies);
     const series = await fetchSeries();
-    respuesta.tvs = series;
+    respuesta.tvs = shuffleArray(series);
     const fantasyMovies = await searchByGenre("Fantasy");
     const tvList = await fetchTvListHome();
     const fantasySeries = tvList.find((tv) => tv.genre === "Fantasy");
     const mixedFantasy = fantasyMovies.concat(fantasySeries.results);
-    mixedFantasy.sort((a, b) => b.popularity - a.popularity);
-    respuesta.fantasiaPelis = mixedFantasy;
+    respuesta.fantasiaPelis = shuffleArray(mixedFantasy);
     const actionMovies = await searchByGenre("Action");
     respuesta.accionPelis = actionMovies;
     const comedyMovies = await searchByGenre("Comedy");
     const comedySeries = tvList.find((tv) => tv.genre === "Comedy");
     const mixedComedy = comedyMovies.concat(comedySeries.results);
-    mixedComedy.sort((a, b) => b.popularity - a.popularity);
-    respuesta.comediaPelis = mixedComedy;
+    respuesta.comediaPelis = shuffleArray(mixedComedy);
     const documentaries = tvList.find((tv) => tv.genre === "Documentary");
     const warAndPolitics = tvList.find((tv) => tv.genre === "War & Politics");
     const mixedDocs = documentaries.results.concat(warAndPolitics.results);
-    mixedDocs.sort((a, b) => b.popularity - a.popularity);
-    respuesta.docs = mixedDocs;
+    respuesta.docs = shuffleArray(mixedDocs);
     const horrorMovies = await searchByGenre("Horror");
     const horrorSeries = tvList.find((tv) => tv.genre === "Crime");
     const mixedHorror = horrorMovies.concat(horrorSeries.results);
-    mixedHorror.sort((a, b) => b.popularity - a.popularity);
-    respuesta.horrorPelis = mixedHorror;
+    respuesta.horrorPelis = shuffleArray(mixedHorror);
     const adventureMovies = await searchByGenre("Adventure");
     const adventureSeries = tvList.find((tv) => tv.genre === "Action & Adventure");
     const mixedAdventure = adventureMovies.concat(adventureSeries.results);
-    mixedAdventure.sort((a, b) => b.popularity - a.popularity);
-    respuesta.aventuraPelis = mixedAdventure;
+    respuesta.aventuraPelis = shuffleArray(mixedAdventure);
     res.json(respuesta);
   } catch (error) {
     console.error("Error al obtener los datos del home");
