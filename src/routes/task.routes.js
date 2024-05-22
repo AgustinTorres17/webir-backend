@@ -378,11 +378,7 @@ router.get("/movie2", async (req, res) => {
     // Ordenar resultados por vote_average de forma descendente
     results.sort((a, b) => b.popularity - a.popularity);
 
-    const validatedResults = await validateRecommendations(results, movieTitle);
-
-    const finalResults = results.filter((_, index) => validatedResults[index]);
-
-    return res.json({ results: finalResults });
+    return res.json({ results: results });
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
     res.status(500).json({ message: "Error interno del servidor" });
