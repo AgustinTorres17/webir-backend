@@ -75,8 +75,7 @@ const fetchTvListHome = async () => {
       };
     })
   );
-  const tvListFilter = filterArrayContent(tvList);
-  return tvListFilter;
+  return tvList;
 };
 
 const fetchTvByGenre = async (genre) => {
@@ -283,7 +282,6 @@ router.get("/genre", async (req, res) => {
       res.status(500).json({ message: "Error interno del servidor" });
     }
   }
-  respuesta = filterArrayContent(respuesta);
   const seriesGenre = await fetchTvByGenre(genre);
   respuesta = shuffleArray(respuesta?.concat(seriesGenre));
   respuesta = respuesta.filter(
