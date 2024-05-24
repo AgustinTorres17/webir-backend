@@ -405,6 +405,53 @@ router.get("/serie/:id", async (req, res) => {
   }
 });
 
+
+
+router.get("/movie2", async (req, res) => {
+  try {
+    let { movieTitle } = req.query;
+    let options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/search/movie?query=${movieTitle}&page=1&language=es-MX`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer " + TMDB_API_KEY,
+      },
+    };
+
+    const response = await axios.request(options);
+    let results = response.data.results;
+
+    // Si no hay resultados de películas, buscar series de TV
+    options.url = `https://api.themoviedb.org/3/search/tv?query=${movieTitle}&page=1&language=es-MX`;
+    const response2 = await axios.request(options);
+    if (!response2.data.results.length && !results.length) {
+      return res.status(404).json({ message: "No se encontraron resultados" });
+    }
+
+    results = results.concat(
+      response2.data.results.map((tvShow) => ({
+        ...tvShow,
+        title: tvShow.name,
+      }))
+    );
+
+    results = results.filter(
+      (result) => result.overview && result.overview.trim() !== ""
+    );
+
+    // Ordenar resultados por vote_average de forma descendente
+    results.sort((a, b) => b.popularity - a.popularity);
+
+    return res.json({ results: results });
+  } catch (error) {
+    console.error("Error al obtener detalles de la película:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+});
+
+
+
 router.get("/movie", async (req, res) => {
   try {
     let { movieTitle } = req.query;
