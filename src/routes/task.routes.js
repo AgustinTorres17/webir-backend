@@ -55,8 +55,6 @@ const tv_genres = [
   },
 ];
 
-
-
 const fetchTvListHome = async () => {
   const tvList = await Promise.all(
     tv_genres.map(async (genre) => {
@@ -84,10 +82,15 @@ const fetchTvByGenre = async (genre) => {
   )?.id;
   if (!genreId) return [];
   let seriesGenre = [];
+  let numbers = [];
   for (let i = 1; i <= 5; i++) {
+    let number = Math.floor(Math.random() * 70) + 1;
+    while (numbers.includes(number)) {
+      number = Math.floor(Math.random() * 70) + 1;
+    }
     const options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}&include_adult=false&language=es-ES&page=${i}&sort_by=popularity.desc`,
+      url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}&include_adult=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,
@@ -215,6 +218,63 @@ const fetchPopularData = async () => {
   }
 };
 
+router.get("/movies", async (req, res) => {
+  let moviesResp = [];
+  let numbers = [];
+  for (let i = 1; i <= 5; i++) {
+    let number = Math.floor(Math.random() * 70) + 1;
+    while (numbers.includes(number)) {
+      number = Math.floor(Math.random() * 70) + 1;
+    }
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer " + TMDB_API_KEY,
+      },
+    };
+    try {
+      const response = await axios.request(options);
+      moviesResp = moviesResp.concat(response.data.results);
+    } catch (error) {
+      console.error("Error al obtener las películas:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  }
+  moviesResp = shuffleArray(moviesResp);
+  res.json(moviesResp);
+});
+
+router.get("/series", async (req, res) => {
+  let seriesResp = [];
+  let numbers = [];
+  for (let i = 1; i <= 5; i++) {
+    
+    let number = Math.floor(Math.random() * 70) + 1;
+    while (numbers.includes(number)) {
+      number = Math.floor(Math.random() * 70) + 1;
+    }
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/tv?include_video=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
+      headers: {
+        accept: "application/json",
+        Authorization: "Bearer " + TMDB_API_KEY,
+      },
+    };
+    try {
+      const response = await axios.request(options);
+      seriesResp = seriesResp.concat(response.data.results);
+    } catch (error) {
+      console.error("Error al obtener las series:", error);
+      res.status(500).json({ message: "Error interno del servidor" });
+    }
+  }
+  seriesResp = shuffleArray(seriesResp);
+  res.json(seriesResp);
+});
+
 const fetchMovies = async () => {
   const options = {
     method: "GET",
@@ -265,10 +325,15 @@ router.get("/genre", async (req, res) => {
   const { genre } = req.query;
   const genreId = await getGenreId(genre);
   let respuesta = [];
+  let numbers = [];
   for (let i = 1; i <= 5; i++) {
+    let number = Math.floor(Math.random() * 70) + 1;
+    while (numbers.includes(number)) {
+      number = Math.floor(Math.random() * 70) + 1;
+    }
     const options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-ES&page=${i}&sort_by=popularity.desc`,
+      url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,
