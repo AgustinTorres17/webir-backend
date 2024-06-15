@@ -1,6 +1,9 @@
 const { Router } = require("express");
 const axios = require("axios");
+const compromise = require("compromise");
+const natural = require("natural");
 const router = Router();
+const leven = require("fast-levenshtein");
 require("dotenv").config();
 
 const TMDB_API_KEY = process.env.TMDB_KEY;
@@ -9,12 +12,23 @@ const GOOGLE_AUX_KEY = process.env.GOOGLE_AUX_KEY;
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const configModel =
-  "Tu tarea es proporcionar una lista de títulos exactos de películas, series o programas de televisión en español. Esto es crucial porque el público es de habla hispana y los nombres en inglés no serán entendidos. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, debes cumplir con los siguientes requisitos: Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión. El formato debe ser un array de strings, donde cada string es el nombre de una película, serie o programa de televisión. Evita usar cualquier carácter especial que no esté presente en el nombre oficial y omite los números si están presentes.Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión. Intenta proporcionar al menos 10 y no más de 20 nombres, siempre que sea posible. Si el usuario menciona una película o serie como ejemplo, los títulos que debes retornar deben ser de películas o series contemporáneas o relacionadas con la mencionada por el usuario. Por ejemplo, si un usuario describe que le gusta la ciencia ficción y las aventuras, tu respuesta debe ser un array de títulos que se ajusten a esa descripción. Este es el prompt del usuario: ";
+var promptGlobal = "";
+
+const configModel = `
+Tu tarea es proporcionar una lista de títulos exactos de películas, series o programas de televisión en español. Esto es crucial porque el público es de habla hispana y los nombres en inglés no serán entendidos. Basándote en la descripción proporcionada por el usuario sobre lo que quiere ver o lo que le gusta, debes cumplir con los siguientes requisitos:
+- Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión.
+- Evita usar cualquier carácter especial que no esté presente en el nombre oficial y omite los números si están presentes.
+- Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión.
+- Intenta proporcionar la mayor cantidad de nombres, con un mínimo de 10 y un máximo de 20. Esto es muy importante porque el usuario necesita opciones para elegir.
+- Si el usuario menciona una película o serie como ejemplo, los títulos que debes retornar deben ser de películas o series contemporáneas o relacionadas con la mencionada por el usuario.
+La respuesta debe ser un arreglo de strings con los nombres de las películas, series o programas de televisión. Cada nombre debe estar entre comillas dobles y separado por comas. Omite cualquier otro tipo de información adicional. Solamente los nombres.`;
 
 const genAI = new GoogleGenerativeAI(`${GOOGLE_KEY}`);
 
-const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-pro",
+  generation_config: "application/json",
+});
 
 const tv_genres = [
   {
@@ -23,23 +37,39 @@ const tv_genres = [
   },
   {
     id: 16,
-    name: "Animation",
+    name: "Animación",
   },
   {
     id: 35,
-    name: "Comedy",
+    name: "Comedia",
   },
   {
     id: 80,
-    name: "Crime",
+    name: "Crimen",
   },
   {
     id: 99,
-    name: "Documentary",
+    name: "Documental",
+  },
+  {
+    id: 18,
+    name: "Drama",
+  },
+  {
+    id: 10751,
+    name: "Familia",
+  },
+  {
+    id: 10762,
+    name: "Kids",
   },
   {
     id: 9648,
-    name: "Mystery",
+    name: "Misterio",
+  },
+  {
+    id: 10763,
+    name: "News",
   },
   {
     id: 10764,
@@ -47,11 +77,364 @@ const tv_genres = [
   },
   {
     id: 10765,
-    name: "Fantasy",
+    name: "Sci-Fi & Fantasy",
+  },
+  {
+    id: 10766,
+    name: "Soap",
+  },
+  {
+    id: 10767,
+    name: "Talk",
   },
   {
     id: 10768,
     name: "War & Politics",
+  },
+  {
+    id: 37,
+    name: "Western",
+  },
+];
+
+const movie_genres = [
+  {
+    id: 28,
+    name: "Acción",
+  },
+  {
+    id: 12,
+    name: "Aventura",
+  },
+  {
+    id: 16,
+    name: "Animación",
+  },
+  {
+    id: 35,
+    name: "Comedia",
+  },
+  {
+    id: 80,
+    name: "Crimen",
+  },
+  {
+    id: 99,
+    name: "Documental",
+  },
+  {
+    id: 18,
+    name: "Drama",
+  },
+  {
+    id: 10751,
+    name: "Familia",
+  },
+  {
+    id: 14,
+    name: "Fantasía",
+  },
+  {
+    id: 36,
+    name: "Historia",
+  },
+  {
+    id: 27,
+    name: "Terror",
+  },
+  {
+    id: 10402,
+    name: "Música",
+  },
+  {
+    id: 9648,
+    name: "Misterio",
+  },
+  {
+    id: 10749,
+    name: "Romance",
+  },
+  {
+    id: 878,
+    name: "Ciencia ficción",
+  },
+  {
+    id: 10770,
+    name: "Película de TV",
+  },
+  {
+    id: 53,
+    name: "Suspense",
+  },
+  {
+    id: 10752,
+    name: "Bélica",
+  },
+  {
+    id: 37,
+    name: "Western",
+  },
+];
+
+const genreEquivalents = [
+  {
+    name: "Action & Adventure",
+    equivalents: ["Acción", "Aventura", "Superheroes"],
+  },
+  {
+    name: "Animation",
+    equivalents: [
+      "Animación",
+      "Animada",
+      "Infantil",
+      "Dibujos animados",
+      "Dibujos",
+      "Dibujo",
+      "Dibujada",
+      "Dibujadas",
+      "Dibujado",
+      "Dibujados",
+      "Disney",
+      "Pixar",
+      "Dreamworks",
+      "Animé",
+      "Anime",
+      "Cartoon",
+      "Cartoons",
+      "Superheroes",
+    ],
+  },
+  {
+    name: "Comedy",
+    equivalents: [
+      "Comedia",
+      "Divertida",
+      "Graciosa",
+      "Risas",
+      "Cómica",
+      "Humor",
+      "Humorística",
+      "Divertidas",
+      "Graciosas",
+      "Cómicas",
+      "Humorísticas",
+      "Divertidos",
+      "Graciosos",
+      "Cómicos",
+      "Humorísticos",
+    ],
+  },
+  {
+    name: "Crime",
+    equivalents: [
+      "Crimen",
+      "Policial",
+      "Detective",
+      "Investigación",
+      "Investigativa",
+      "Investigativo",
+      "Investigativos",
+      "Investigativas",
+      "Policíaca",
+      "Policíaco",
+      "Policíacas",
+      "Policíacos",
+      "Policiales",
+      "Policíacos",
+      "Detectives",
+    ],
+  },
+  {
+    name: "Documentary",
+    equivalents: [
+      "Documental",
+      "Documentales",
+      "Documentales de",
+      "Documentales sobre",
+      "Documentales acerca de",
+    ],
+  },
+  {
+    name: "Mystery",
+    equivalents: [
+      "Misterio",
+      "Intriga",
+      "Enigma",
+      "Enigmas",
+      "Misteriosa",
+      "Misteriosas",
+      "Misterioso",
+      "Misteriosos",
+      "Intrigante",
+      "Intrigantes",
+      "Enigmática",
+      "Enigmáticas",
+      "Enigmático",
+      "Enigmáticos",
+    ],
+  },
+  { name: "Reality", equivalents: [] },
+  {
+    name: "Fantasy",
+    equivalents: [
+      "Fantasía",
+      "Fantasia",
+      "fantasia",
+      "Fantasiosa",
+      "Fantasías",
+      "Fantasiosas",
+      "Fantasioso",
+      "Fantasiosos",
+      "Fantástica",
+      "Fantásticas",
+      "Fantástico",
+      "Fantasía épica",
+      "Fantasías épicas",
+      "Fantasía medieval",
+      "Fantasías medievales",
+      "Fantasía oscura",
+      "Fantasías oscuras",
+      "Fantasía urbana",
+      "Fantasías urbanas",
+      "Fantasía de",
+      "Fantasías de",
+      "Superheroes",
+    ],
+  },
+  {
+    name: "War & Politics",
+    equivalents: [
+      "Bélica",
+      "Bélicas",
+      "Bélico",
+      "Bélicos",
+      "Guerra",
+      "Guerras",
+      "Política",
+      "Políticas",
+      "Político",
+      "Políticos",
+      "Guerra y política",
+      "Guerras y política",
+      "Guerra y político",
+      "Guerras y político",
+      "Bélica y política",
+      "Bélicas y política",
+      "Bélico y político",
+      "Bélicos y político",
+    ],
+  },
+  {
+    name: "Horror",
+    equivalents: [
+      "Terror",
+      "Terrorífica",
+      "Terroríficas",
+      "Terrorífico",
+      "Terroríficos",
+      "Horror",
+      "Horrorífica",
+      "Horroríficas",
+      "Horrorífico",
+      "Horroríficos",
+      "Horrorosa",
+      "Horrorosas",
+      "Horroroso",
+      "Horrorosos",
+      "Miedo",
+    ],
+  },
+  {
+    name: "Thriller",
+    equivalents: [
+      "Suspense",
+      "Terror",
+      "Terrorífica",
+      "Terroríficas",
+      "Terrorífico",
+      "Terroríficos",
+      "Horror",
+      "Horrorífica",
+      "Horroríficas",
+      "Horrorífico",
+      "Horroríficos",
+      "Horrorosa",
+      "Horrorosas",
+      "Horroroso",
+      "Horrorosos",
+      "Suspenso",
+      "Miedo",
+    ],
+  },
+  { name: "Drama", equivalents: ["Drama"] },
+  {
+    name: "Family",
+    equivalents: [
+      "Familia",
+      "Familiar",
+      "Familias",
+      "Familiares",
+      "Infantil",
+      "Infantiles",
+      "Niños",
+      "Niñas",
+      "Niñez",
+      "Infancia",
+      "Infantilidad",
+      "Infantilidades",
+      "Familiaridad",
+      "Familiaridades",
+      "Familiarismo",
+      "Familiarismos",
+      "Familiaridad",
+      "Familiaridades",
+      "Familiera",
+      "Familieras",
+    ],
+  },
+  {
+    name: "History",
+    equivalents: [
+      "Historia",
+      "Histórica",
+      "Históricas",
+      "Histórico",
+      "Históricos",
+    ],
+  },
+  { name: "Music", equivalents: ["Música", "Musical"] },
+  { name: "Romance", equivalents: ["Romance", "Amor", "Amorosa"] },
+  {
+    name: "Sci-Fi & Fantasy",
+    equivalents: [
+      "Ciencia ficción",
+      "Ficción",
+      "Ciencia",
+      "Futurista",
+      "Futuristas",
+      "Futurístico",
+      "Futurísticos",
+      "Futurística",
+      "Futurísticas",
+      "Futurismo",
+      "Futurismos",
+      "Superheroes",
+    ],
+  },
+  { name: "TV Movie", equivalents: ["Película de TV"] },
+  {
+    name: "Western",
+    equivalents: [
+      "Western",
+      "Oeste",
+      "Viejo Oeste",
+      "Vaqueros",
+      "Vaquero",
+      "Cowboy",
+      "Cowboys",
+      "Cowgirl",
+      "Cowgirls",
+    ],
   },
 ];
 
@@ -102,35 +485,58 @@ const fetchTvByGenre = async (genre) => {
   return seriesGenre;
 };
 
+//Leer el prompt del usuario y generar recomendaciones
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
-
+  console.log(prompt);
+  promptGlobal = prompt;
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
+
   prompt = configModel + prompt;
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  // Extrae el texto de la respuesta
-  const text = response?.candidates[0]?.content?.parts[0]?.text;
+  try {
+    const result = await model.generateContent(prompt);
 
-  if (!text)
-    return res.status(500).json({ message: "No se pudo generar el texto" });
+    const response = await result.response;
 
-  // Divide el texto por los saltos de línea para obtener un array de nombres de películas
-  const movieNames = text?.split("\n");
+    const text = response?.candidates[0]?.content?.parts[0]?.text;
 
-  // Elimina los guiones del principio de cada nombre de película, reemplaza los espacios por %20 y convierte todo a minúsculas
-  const cleanedMovieNames = movieNames.map((name) =>
-    name.replace(/^- /, "").replace(/ /g, "%20").toLowerCase()
-  );
+    if (!text)
+      return res.status(500).json({ message: "No se pudo generar el texto" });
 
-  // Envía el array de nombres de películas como respuesta
-  res.json(cleanedMovieNames);
+    try {
+      const movieNamesArray = JSON.parse(text); // Parsear el JSON
+      const movieNames = movieNamesArray
+        .map((name) => name.trim().replace(/,$/, "").replace(/^"|"$/, ""))
+        .filter((name) => name); // Eliminar elementos vacíos
+      console.log(movieNames);
+      res.json(movieNames);
+    } catch (error) {
+      console.log(text);
+      /* console.error("Error al parsear el texto:", error); */
+      console.log(error);
+      res.status(500).json({ message: text });
+    }
+  } catch (error) {
+    console.error("Error al generar contenido:", error);
+    return res.status(500).json({ message: "Error al generar contenido" });
+  }
 });
 
 router.get("/", async (req, res) => {
   res.send("Working");
 });
+
+function getGenreName(genreIds) {
+  if (genreIds.length === 0) return [];
+  const genres = movie_genres.concat(tv_genres);
+  let genresNames = [];
+  for (let i = 0; i < genreIds.length; i++) {
+    const genre = genres.find((g) => g.id === genreIds[i]);
+    if (genre) genresNames.push(genre.name);
+  }
+  return genresNames;
+}
 
 // Función para obtener el ID del género
 async function getGenreId(genreName) {
@@ -250,7 +656,6 @@ router.get("/series", async (req, res) => {
   let seriesResp = [];
   let numbers = [];
   for (let i = 1; i <= 5; i++) {
-    
     let number = Math.floor(Math.random() * 70) + 1;
     while (numbers.includes(number)) {
       number = Math.floor(Math.random() * 70) + 1;
@@ -405,14 +810,13 @@ router.get("/serie/:id", async (req, res) => {
   }
 });
 
-
-
 router.get("/movie2", async (req, res) => {
   try {
     let { movieTitle } = req.query;
+    const result = fuse.search(movieTitle);
     let options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/search/movie?query=${movieTitle}&page=1&language=es-MX`,
+      url: `https://api.themoviedb.org/3/search/movie?query=${result}&page=1&language=es-MX`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,
@@ -450,54 +854,107 @@ router.get("/movie2", async (req, res) => {
   }
 });
 
-
-
+// Funcion para fetchear peliculas y series por titulo
 router.get("/movie", async (req, res) => {
   try {
     let { movieTitle } = req.query;
+
     let options = {
       method: "GET",
       url: `https://api.themoviedb.org/3/search/movie?query=${movieTitle}&page=1&language=es-MX`,
       headers: {
         accept: "application/json",
-        Authorization: "Bearer " + TMDB_API_KEY,
+        Authorization: `Bearer ${TMDB_API_KEY}`,
       },
     };
 
     const response = await axios.request(options);
     let results = response.data.results;
 
-    // Si no hay resultados de películas, buscar series de TV
+    // Function to get cast for a specific result
+    const getCast = async (result) => {
+      try {
+        let options = {
+          method: "GET",
+          url: `https://api.themoviedb.org/3/movie/${result.id}/credits?language=es-ES`,
+          headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${TMDB_API_KEY}`,
+          },
+        };
+        const response = await axios.request(options);
+        result.cast = response.data.cast
+          .slice(0, 10)
+          .map((actor) => actor.name);
+        return result;
+      } catch (error) {
+        result.cast = [];
+        return result;
+      }
+    };
+
+    // Get cast for all movie results
+    results = await Promise.all(
+      results.map(async (movie) => {
+        const data = await getCast(movie);
+        movie.cast = data.cast;
+        return movie;
+      })
+    );
+
+    // Get TV shows
     options.url = `https://api.themoviedb.org/3/search/tv?query=${movieTitle}&page=1&language=es-MX`;
     const response2 = await axios.request(options);
-    if (!response2.data.results.length && !results.length) {
-      return res.status(404).json({ message: "No se encontraron resultados" });
-    }
+    let tvResults = response2.data.results;
 
+    const getTvCast = async (result) => {
+      try {
+        let options = {
+          method: "GET",
+          url: `https://api.themoviedb.org/3/tv/${result.id}/credits?language=es-MX`,
+          headers: {
+            accept: "application/json",
+            Authorization: `Bearer ${TMDB_API_KEY}`,
+          },
+        };
+        const response = await axios.request(options);
+        result.cast = response.data.cast
+          .slice(0, 10)
+          .map((actor) => actor.name);
+        return result;
+      } catch (error) {
+        result.cast = [];
+        return result;
+      }
+    };
+
+    tvResults = await Promise.all(
+      tvResults.map(async (tvShow) => {
+        const data = await getTvCast(tvShow);
+        tvShow.cast = data.cast;
+        return tvShow;
+      })
+    );
+
+    // Combine results
     results = results.concat(
-      response2.data.results.map((tvShow) => ({
+      tvResults.map((tvShow) => ({
         ...tvShow,
         title: tvShow.name,
+        year: tvShow.first_air_date?.split("-")[0],
       }))
     );
 
-    results = results.filter(
-      (result) => result.overview && result.overview.trim() !== ""
-    );
+    // Filter results
+    let resultsCorrected = results.filter((result) => {
+      return result.overview.length > 20 && result.poster_path != null;
+    });
 
-    // Ordenar resultados por vote_average de forma descendente
-    results.sort((a, b) => b.popularity - a.popularity);
+    resultsCorrected.sort((a, b) => b.popularity - a.popularity);
 
-    // Si hay más de 3 resultados, quedarnos solo con los 3 primeros
-    if (results.length > 3) {
-      results = results.slice(0, 3);
-    }
+    const resSeparados = resultsCorrected.slice(0, 10);
 
-    const validatedResults = await validateRecommendations(results, movieTitle);
-
-    const finalResults = results.filter((_, index) => validatedResults[index]);
-
-    return res.json({ results: finalResults });
+    return res.json({ results: resSeparados });
   } catch (error) {
     console.error("Error al obtener detalles de la película:", error);
     res.status(500).json({ message: "Error interno del servidor" });
@@ -566,82 +1023,163 @@ router.get("/movie-providers", async (req, res) => {
   }
 });
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const isPersonInPrompt = (cast, promptKeywords) => {
+  const normalizedCast = cast.map((person) =>
+    removeSpaces(normalizeText(person))
+  );
 
-const generateContentWithRetries = async (
-  model,
-  prompt,
-  maxRetries = 2,
-  backoff = 400
-) => {
-  let attempts = 0;
-  while (attempts < maxRetries) {
-    try {
-      const result = await model.generateContent(prompt);
-      return result;
-    } catch (error) {
-      if (error.status === 429) {
-        attempts++;
-        await sleep(backoff * attempts); // Exponential backoff
-      } else {
-        throw error;
+  let normalizedKeywords = [];
+  if (promptKeywords.length === 1) {
+    normalizedKeywords = promptKeywords[0]
+      .split(" ")
+      .filter((word) => word.length > 4);
+    normalizedKeywords = normalizedKeywords.map((keyword) =>
+      removeSpaces(normalizeText(keyword))
+    );
+  } else {
+    normalizedKeywords = promptKeywords.map((keyword) =>
+      removeSpaces(normalizeText(keyword))
+    );
+  }
+
+  const keywordInCast = normalizedKeywords.some((person) =>
+    normalizedCast.some((actor) => {
+      const distance = leven.get(actor, person);
+      return distance <= Math.min(actor.length, person.length) / 3; // Permite un tercio del tamaño como errores
+    })
+  );
+
+  return keywordInCast;
+};
+
+const removeSpaces = (text) => text.replace(/\s+/g, "").trim();
+
+const normalizeText = (text) => {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, "");
+};
+
+// Función para extraer palabras clave
+const getKeywords = (text) => {
+  const doc = compromise(text);
+  const keywords = doc
+    .nouns()
+    .out("array")
+    .concat(doc.adjectives().out("array"))
+    .concat(doc.verbs().out("array"));
+  return keywords.map((keyword) => keyword.toLowerCase());
+};
+
+const convertKeywordsToGenres = (keywords) => {
+  const convertedKeywords = keywords.map((keyword) => {
+    const normalizedKeyword = normalizeText(removeSpaces(keyword));
+    for (const genreEquivalent of genreEquivalents) {
+      const { name, equivalents } = genreEquivalent;
+      const normalizedEquivalents = equivalents.map((eq) =>
+        normalizeText(removeSpaces(eq))
+      );
+      if (
+        normalizedEquivalents.some(
+          (eq) => leven.get(eq, normalizedKeyword) <= 2
+        )
+      ) {
+        return name;
       }
     }
-  }
+    return keyword;
+  });
+  return convertedKeywords;
 };
 
-const validateRecommendations = async (recommendations, prompt) => {
-  const promptFinal = recommendations
-    .map((recommendation) => {
-      let { title, year, overview } = recommendation;
+// Modificación de la función isGenreInPrompt
+const isGenreInPrompt = (genres, promptKeywords) => {
+  if (genres.length === 0) return false;
 
-      title = title || "-";
-      year = year || "-";
-      overview = overview || "-";
+  const normalizedGenres = genres.map((genre) =>
+    removeSpaces(normalizeText(genre))
+  );
 
-      return `
-      Prompt del usuario: "${prompt}"
-      Recomendación obtenida:
-      - Título: "${title}"
-      - Año: "${year}"
-      - Sinópsis: "${overview}"
-    `;
+  // Convertir palabras clave en géneros equivalentes
+  let normalizedKeywords = promptKeywords.map((keyword) =>
+    normalizeText(keyword)
+  );
+
+  if (normalizedKeywords.length === 1) {
+    normalizedKeywords = normalizedKeywords[0]
+      .split(" ")
+      .filter((word) => word.length > 4);
+    normalizedKeywords = normalizedKeywords.map((keyword) =>
+      removeSpaces(keyword)
+    );
+  } else {
+    normalizedKeywords = normalizedKeywords.map((keyword) =>
+      removeSpaces(keyword)
+    );
+  }
+
+  normalizedKeywords = convertKeywordsToGenres(normalizedKeywords);
+
+  // Verifica si alguno de los géneros normalizados está en las palabras clave
+  const keywordInGenres = normalizedKeywords.some((keyword) =>
+    normalizedGenres.some((genre) => {
+      const distance = leven.get(genre, keyword);
+      return distance <= Math.min(genre.length, keyword.length) / 3;
     })
-    .join("\n");
+  );
 
-  const promptComplete = `
-    A continuación, te proporciono la prompt ingresada por el usuario junto con las recomendaciones obtenidas. Necesito que verifiques si cada recomendación es acorde a la prompt del usuario.
-    ${promptFinal}
-    Tu tarea es:
-    1. Revisar si cada recomendación proporcionada coincide exactamente con la descripción y los criterios mencionados en la prompt del usuario.
-    2. Mantén en cuenta que el público es de habla hispana, por lo tanto, los nombres en inglés no serán entendidos.
-    3. Ten en cuenta el año y la sinópsis de cada recomendación para verificar si se ajusta a los criterios mencionados por el usuario. Si el año no corresponde con la película o la sinópsis no coincide con los géneros o temas mencionados por el usuario, la recomendación no es adecuada.
-    Respuesta esperada: 
-    - Si la recomendación es adecuada: "true"
-    - Si la recomendación no es adecuada: "false"
-    - Si no estás seguro: "false"
-    No respondas otra información adicional, solo "true", "false".
-  `;
-
-  try {
-    const result = await generateContentWithRetries(model, promptComplete);
-    const response = await result?.response;
-
-    if (!response) {
-      throw new Error("Error al consultar a la IA");
-    }
-
-    const text = response?.candidates[0]?.content?.parts[0]?.text;
-    if (!text) throw new Error("No se pudo generar el texto");
-
-    const validatedResults = text
-      ?.split("\n")
-      .map((line) => line.includes("true"));
-    return validatedResults;
-  } catch (error) {
-    throw new Error("Error al consultar a la IA: " + error.message);
-  }
+  return keywordInGenres;
 };
+
+// Función para validar recomendaciones usando Cosine Similarity
+async function validateRecommendations(recommendations, prompt) {
+  if (!recommendations || recommendations.length === 0) return [];
+  const promptNormalized = normalizeText(prompt);
+  const promptKeywords = getKeywords(promptNormalized);
+  console.log(promptKeywords);
+  const filteredByActor = recommendations.filter((rec) => {
+    if (!rec || !rec.cast || rec.cast.length === 0) return false;
+    console.log(rec.title, rec.cast);
+    if (isPersonInPrompt(rec.cast, promptKeywords)) {
+      return true;
+    }
+  });
+  console.log(filteredByActor.length);
+  if (filteredByActor.length > 0) return filteredByActor;
+  const filteredByGenre = recommendations.filter((rec) => {
+    if (!rec || rec.overview.length < 30) return false;
+    const genres_ids = rec.genre_ids;
+    const genres = getGenreName(genres_ids);
+    if (!genres || genres.length === 0) return false;
+    return isGenreInPrompt(genres, promptKeywords);
+  });
+  console.log(filteredByGenre.length);
+  if (filteredByGenre.length > 0) return filteredByGenre;
+
+  const sortedRecommendations = recommendations
+    .sort((a, b) => b.popularity - a.popularity)
+    .filter((rec) => rec.cast.length > 3)
+    .filter((rec) => rec.overview.length > 30);
+  const finalRecommendations = sortedRecommendations
+    .sort((a, b) => b.cast.length - a.cast.length)
+    .slice(0, 15);
+  return finalRecommendations;
+}
+
+router.post("/validate", async (req, res) => {
+  const { recommendations, prompt } = req.body;
+  console.log("llamaron validar");
+  const uniqueRecommendations = [...new Set(recommendations)];
+
+  const validatedRecommendations = await validateRecommendations(
+    uniqueRecommendations,
+    prompt
+  );
+
+  res.json({ results: validatedRecommendations });
+});
 
 router.get("/serie-providers", async (req, res) => {
   try {
