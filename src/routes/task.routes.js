@@ -522,7 +522,7 @@ router.post("/generate", async (req, res) => {
       res.status(500).json({ message: text });
     }
   } catch (error) {
-    console.error("Error al generar contenido:", error);
+    /* console.error("Error al generar contenido:", error); */
     return res.status(500).json({ message: "Error al generar contenido" });
   }
 });
@@ -560,7 +560,7 @@ async function getGenreId(genreName) {
     );
     return genre ? genre.id : null;
   } catch (error) {
-    console.error("Error fetching genre ID:", error);
+    /* console.error("Error fetching genre ID:", error); */
     return null;
   }
 }
@@ -588,7 +588,7 @@ async function searchByGenre(genreName) {
     }
     return movieResults;
   } catch (error) {
-    console.error(error);
+    /* console.error(error); */
     return null;
   }
 }
@@ -623,7 +623,7 @@ const fetchPopularData = async () => {
       tvShows: tvResponse.data.results,
     };
   } catch (error) {
-    console.error(error);
+    /* console.error(error); */
     return null;
   }
 };
@@ -648,7 +648,7 @@ router.get("/movies", async (req, res) => {
       const response = await axios.request(options);
       moviesResp = moviesResp.concat(response.data.results);
     } catch (error) {
-      console.error("Error al obtener las películas:", error);
+      /* console.error("Error al obtener las películas:", error); */
       res.status(500).json({ message: "Error interno del servidor" });
     }
   }
@@ -676,7 +676,7 @@ router.get("/series", async (req, res) => {
       const response = await axios.request(options);
       seriesResp = seriesResp.concat(response.data.results);
     } catch (error) {
-      console.error("Error al obtener las series:", error);
+      /* console.error("Error al obtener las series:", error); */
       res.status(500).json({ message: "Error interno del servidor" });
     }
   }
@@ -754,7 +754,7 @@ router.get("/genre", async (req, res) => {
       const response = await axios.request(options);
       respuesta = respuesta?.concat(response.data.results);
     } catch (error) {
-      console.error("Error al obtener las películas por género:", error);
+      /* console.error("Error al obtener las películas por género:", error); */
       res.status(500).json({ message: "Error interno del servidor" });
     }
   }
@@ -791,7 +791,7 @@ router.get("/movie/:id", async (req, res) => {
       response2.data.title = response2.data.name;
       return res.json(response2.data);
     } catch (error) {
-      console.error("Error al obtener detalles de la película:", error);
+      /* console.error("Error al obtener detalles de la película:", error); */
       res.status(500).json({ message: "Error interno del servidor" });
     }
   }
@@ -811,7 +811,7 @@ router.get("/serie/:id", async (req, res) => {
     const response = await axios.request(options);
     return res.json(response.data);
   } catch (error) {
-    console.error("Error al obtener detalles de la película:", error);
+    /* console.error("Error al obtener detalles de la película:", error); */
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
@@ -854,7 +854,7 @@ router.get("/movie2", async (req, res) => {
 
     return res.json({ results: results });
   } catch (error) {
-    console.error("Error al obtener detalles de la película:", error);
+    /* console.error("Error al obtener detalles de la película:", error); */
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
@@ -961,7 +961,7 @@ router.get("/movie", async (req, res) => {
 
     return res.json({ results: resSeparados });
   } catch (error) {
-    console.error("Error al obtener detalles de la película:", error);
+    /* console.error("Error al obtener detalles de la película:", error); */
     res.status(500).json({ message: "Error interno del servidor" });
   }
 });
@@ -1061,7 +1061,7 @@ router.get("/movie-providers", async (req, res) => {
     const response = await axios.request(options);
     res.json(response.data);
   } catch (error) {
-    console.error("Error al obtener detalles de la película:", error);
+    /* console.error("Error al obtener detalles de la película:", error); */
     res
       .status(500)
       .json({ message: "Error al obtener detalles de la película" });
@@ -1124,7 +1124,7 @@ const getKeywords = (text) => {
     .concat(doc.verbs().out("array"));
 
   const filteredKeywords = keywords.flatMap((keyword) => splitByStopwords(keyword));
-  console.log("Extracted Keywords:", filteredKeywords);
+  /* console.log("Extracted Keywords:", filteredKeywords); */
   return filteredKeywords.map((keyword) => keyword.toLowerCase());
 };
 
@@ -1152,7 +1152,7 @@ const convertKeywordsToGenres = (keywords) => {
     return [keyword];
   }).flat();
 
-  console.log("Converted Keywords to Genres:", convertedKeywords);
+  /* console.log("Converted Keywords to Genres:", convertedKeywords); */
   return convertedKeywords;
 };
 
@@ -1183,8 +1183,8 @@ const isGenreInPrompt = (genres, promptKeywords) => {
   }
 
   normalizedKeywords = convertKeywordsToGenres(normalizedKeywords);
-  console.log("Normalized Genres:", normalizedGenres);
-  console.log("Normalized Keywords:", normalizedKeywords);
+  /* console.log("Normalized Genres:", normalizedGenres);
+  console.log("Normalized Keywords:", normalizedKeywords); */
 
   // Verifica si alguno de los géneros normalizados está en las palabras clave
   const keywordInGenres = normalizedKeywords.some((keyword) =>
@@ -1203,16 +1203,16 @@ async function validateRecommendations(recommendations, prompt) {
   if (!recommendations || recommendations.length === 0) return [];
   const promptNormalized = normalizeText(prompt);
   const promptKeywords = getKeywords(promptNormalized);
-  console.log("Prompt Keywords:", promptKeywords);
+  /* console.log("Prompt Keywords:", promptKeywords); */
 
   const filteredByActor = recommendations.filter((rec) => {
     if (!rec || !rec.cast || rec.cast.length === 0) return false;
-    console.log("Checking Actor in:", rec.title, rec.cast);
+    /* console.log("Checking Actor in:", rec.title, rec.cast); */
     if (isPersonInPrompt(rec.cast, promptKeywords)) {
       return true;
     }
   });
-  console.log("Filtered by Actor:", filteredByActor.length);
+  /* console.log("Filtered by Actor:", filteredByActor.length); */
 
   if (filteredByActor.length > 0) return filteredByActor;
 
@@ -1221,10 +1221,10 @@ async function validateRecommendations(recommendations, prompt) {
     const genres_ids = rec.genre_ids;
     const genres = getGenreName(genres_ids);
     if (!genres || genres.length === 0) return false;
-    console.log("Checking Genre in:", rec.title, genres);
+    /* console.log("Checking Genre in:", rec.title, genres); */
     return isGenreInPrompt(genres, promptKeywords);
   });
-  console.log("Filtered by Genre:", filteredByGenre.length);
+  /* console.log("Filtered by Genre:", filteredByGenre.length); */
 
   if (filteredByGenre.length > 0) return filteredByGenre;
 
@@ -1243,7 +1243,7 @@ function shuffleArray(array) {
 
 router.post("/validate", async (req, res) => {
   const { recommendations, prompt } = req.body;
-  console.log("llamaron validar");
+  /* console.log("llamaron validar"); */
   const uniqueRecommendations = [...new Set(recommendations)];
 
   const validatedRecommendations = await validateRecommendations(
@@ -1255,7 +1255,7 @@ router.post("/validate", async (req, res) => {
     .filter((rec) => rec.overview.length > 30);
   const finalRecommendations = sortedRecommendations.sort((a, b) => b.popularity - a.popularity);
   const randomRec = shuffleArray(finalRecommendations);
-  console.log(finalRecommendations.map((rec) => rec.title));
+  /* console.log(finalRecommendations.map((rec) => rec.title)); */
   res.json({ results: randomRec });
 });
 
@@ -1274,7 +1274,7 @@ router.get("/serie-providers", async (req, res) => {
     const response = await axios.request(options);
     res.json(response.data);
   } catch (error) {
-    console.error("Error al obtener detalles de la película:", error);
+    /* console.error("Error al obtener detalles de la película:", error); */
     res
       .status(500)
       .json({ message: "Error al obtener detalles de la película" });
@@ -1319,7 +1319,8 @@ router.get("/get-data-home", async (req, res) => {
     respuesta.aventuraPelis = shuffleArray(mixedAdventure);
     res.json(respuesta);
   } catch (error) {
-    console.error("Error al obtener los datos del home", error);
+    /* console.error("Error al obtener los datos del home", error); */
+    res.status(500).json({ message: "Error interno del servidor" });
   }
 });
 
