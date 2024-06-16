@@ -1108,7 +1108,7 @@ const normalizeText = (text) => {
 };
 
 // Función para extraer palabras clave
-const stopwords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "y", "a", "que", "en", "es", "por", "con", "para", "o", "serie", "pelicula"];
+const stopwords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "y", "a", "que", "en", "es", "por", "con", "para", "o", "serie", "pelicula", ",", ".", ";", ":"];
 
 const splitByStopwords = (text) => {
   const regex = new RegExp(`\\b(${stopwords.join('|')})\\b`, 'gi');
