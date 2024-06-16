@@ -179,7 +179,15 @@ const movie_genres = [
 const genreEquivalents = [
   {
     name: "Action & Adventure",
-    equivalents: ["Acción", "Aventura", "Superheroes"],
+    equivalents: [
+      "Acción",
+      "Aventura",
+      "Superheroes",
+      "Heroica",
+      "Epica",
+      "Batallas",
+      "Epicas",
+    ],
   },
   {
     name: "Animation",
@@ -202,6 +210,7 @@ const genreEquivalents = [
       "Cartoon",
       "Cartoons",
       "Superheroes",
+      "Animacion 3D",
     ],
   },
   {
@@ -222,6 +231,9 @@ const genreEquivalents = [
       "Graciosos",
       "Cómicos",
       "Humorísticos",
+      "Parodia",
+      "Satira",
+      "Burlesca",
     ],
   },
   {
@@ -243,7 +255,11 @@ const genreEquivalents = [
       "Policíacos",
       "Detectives",
       "Criminal",
-      "Criminales"
+      "Criminales",
+      "Criminalistica",
+      "Crimen Real",
+      "Thriller Policial",
+      "Noir",
     ],
   },
   {
@@ -254,6 +270,12 @@ const genreEquivalents = [
       "Documentales de",
       "Documentales sobre",
       "Documentales acerca de",
+      "Docudrama",
+      "Biografia",
+      "Autobiografica",
+      "Autobigrafia",
+      "Naturalista",
+      "Autobiografias",
     ],
   },
   {
@@ -273,9 +295,14 @@ const genreEquivalents = [
       "Enigmáticas",
       "Enigmático",
       "Enigmáticos",
+      "Thriller",
+      "Investigacion Paranormal",
     ],
   },
-  { name: "Reality", equivalents: [] },
+  {
+    name: "Reality",
+    equivalents: ["Competicion", "Docu-reality", "Telerrealidad"],
+  },
   {
     name: "Fantasy",
     equivalents: [
@@ -301,6 +328,12 @@ const genreEquivalents = [
       "Fantasía de",
       "Fantasías de",
       "Superheroes",
+      "Ficcion magica",
+      "Cuento de hadas",
+      "Cuentos de hadas",
+      "Fantasia heroica",
+      "Magos",
+      "Hechiceros",
     ],
   },
   {
@@ -324,6 +357,11 @@ const genreEquivalents = [
       "Bélicas y política",
       "Bélico y político",
       "Bélicos y político",
+      "Guerra mundial",
+      "Guerra fria",
+      "Guerras mundiales",
+      "Conflicto belico",
+      "Thriller politico",
     ],
   },
   {
@@ -344,6 +382,10 @@ const genreEquivalents = [
       "Horroroso",
       "Horrorosos",
       "Miedo",
+      "Sobrenatural",
+      "Sobrenaturales",
+      "Gore",
+      "Slasher",
     ],
   },
   {
@@ -368,7 +410,10 @@ const genreEquivalents = [
       "Miedo",
     ],
   },
-  { name: "Drama", equivalents: ["Drama"] },
+  {
+    name: "Drama",
+    equivalents: ["Drama", "Melodrama", "Tragedia", "Dramedia"],
+  },
   {
     name: "Family",
     equivalents: [
@@ -392,6 +437,10 @@ const genreEquivalents = [
       "Familiaridades",
       "Familiera",
       "Familieras",
+      "Pelicula familiar",
+      "Peliculas familiares",
+      "Comedia familiar",
+      "Aventura familiar",
     ],
   },
   {
@@ -404,7 +453,7 @@ const genreEquivalents = [
       "Históricos",
     ],
   },
-  { name: "Music", equivalents: ["Música", "Musical"] },
+  { name: "Music", equivalents: ["Música", "Musical", "Opera", "Concierto"] },
   { name: "Romance", equivalents: ["Romance", "Amor", "Amorosa"] },
   {
     name: "Sci-Fi & Fantasy",
@@ -421,9 +470,10 @@ const genreEquivalents = [
       "Futurismo",
       "Futurismos",
       "Superheroes",
+      "Espacial",
     ],
   },
-  { name: "TV Movie", equivalents: ["Película de TV"] },
+  { name: "TV Movie", equivalents: ["Película de TV", "Miniserie"] },
   {
     name: "Western",
     equivalents: [
@@ -460,8 +510,6 @@ const fetchTvListHome = async () => {
   );
   return tvList;
 };
-
-
 
 const fetchTvByGenre = async (genre) => {
   const genreId = tv_genres.find((g) =>
@@ -568,7 +616,7 @@ async function getGenreId(genreName) {
 // Función para buscar películas y series por género
 async function searchByGenre(genreName) {
   const genreId = await getGenreId(genreName);
- /*  console.log(genreId); */
+  /*  console.log(genreId); */
   const maxPages = 4; // Número máximo de páginas a obtener
   let movieResults = [];
 
@@ -582,7 +630,7 @@ async function searchByGenre(genreName) {
           Authorization: `Bearer ${TMDB_API_KEY}`,
         },
       };
-      
+
       const movieResponse = await axios.request(movieOptions);
       movieResults = movieResults.concat(movieResponse.data.results);
     }
@@ -696,8 +744,6 @@ const fetchMovies = async () => {
   const response = await axios.request(options);
   return response.data.results;
 };
-
-
 
 const fetchSeries = async () => {
   const options = {
@@ -952,7 +998,11 @@ router.get("/movie", async (req, res) => {
 
     // Filter results
     let resultsCorrected = results.filter((result) => {
-      return result.overview.length > 30 && result.poster_path != null && result.vote_average > 1;
+      return (
+        result.overview.length > 30 &&
+        result.poster_path != null &&
+        result.vote_average > 1
+      );
     });
 
     resultsCorrected.sort((a, b) => b.popularity - a.popularity);
@@ -1108,23 +1158,78 @@ const normalizeText = (text) => {
 };
 
 // Función para extraer palabras clave
-const stopwords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "y", "a", "que", "en", "es", "por", "con", "para", "o", "serie", "pelicula", ",", ".", ";", ":"];
+const stopwords = [
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "de",
+  "y",
+  "a",
+  "que",
+  "en",
+  "es",
+  "por",
+  "con",
+  "para",
+  "o",
+  "serie",
+  "series",
+  "peliculas",
+  "pelicula",
+  "como",
+  "actue",
+  "este",
+  "protagonizada",
+  "favorito",
+  "protagonizado",
+  "sea",
+  "protagonista",
+  "son",
+];
 
-const splitByStopwords = (text) => {
-  const regex = new RegExp(`\\b(${stopwords.join('|')})\\b`, 'gi');
-  return text.split(regex).filter(word => !stopwords.includes(word.toLowerCase()) && word.trim() !== '');
+const splitByStopwordsGenre = (text) => {
+  text = text.replace(/\s/g, " y ");
+
+  const regex = new RegExp(`\\b(${stopwords.join("|")})\\b`, "gi");
+  return text
+    .split(regex)
+    .filter(
+      (word) => !stopwords.includes(normalizeText(word)) && word.trim() !== ""
+    );
 };
 
-const getKeywords = (text) => {
+const splitByStopwordsActor = (text) => {
+  const regex = new RegExp(`\\b(${stopwords.join("|")})\\b`, "gi");
+  return text
+    .split(regex)
+    .filter(
+      (word) => !stopwords.includes(normalizeText(word)) && word.trim() !== ""
+    );
+};
+
+const getKeywords = (text, isActor) => {
   const doc = compromise(text);
   const keywords = doc
     .nouns()
     .out("array")
     .concat(doc.adjectives().out("array"))
     .concat(doc.verbs().out("array"));
-
-  const filteredKeywords = keywords.flatMap((keyword) => splitByStopwords(keyword));
-  /* console.log("Extracted Keywords:", filteredKeywords); */
+  let filteredKeywords = [];
+  if (isActor) {
+    filteredKeywords = keywords.flatMap((keyword) =>
+      splitByStopwordsActor(keyword)
+    );
+  } else {
+    filteredKeywords = keywords.flatMap((keyword) =>
+      splitByStopwordsGenre(keyword)
+    );
+  }
+  console.log("Extracted Keywords:", filteredKeywords);
   return filteredKeywords.map((keyword) => keyword.toLowerCase());
 };
 
@@ -1138,19 +1243,23 @@ const convertKeywordsToGenres = (keywords) => {
         genreMapping[normalizedEquivalent] = [];
       }
       genreMapping[normalizedEquivalent].push(name);
-      genreMapping[normalizedEquivalent].push(...equivalents.map(eq => normalizeText(removeSpaces(eq))));
+      genreMapping[normalizedEquivalent].push(
+        ...equivalents.map((eq) => normalizeText(removeSpaces(eq)))
+      );
     });
   });
 
-  const convertedKeywords = keywords.map((keyword) => {
-    const normalizedKeyword = normalizeText(removeSpaces(keyword));
-    for (const normalizedEquivalent in genreMapping) {
-      if (leven.get(normalizedEquivalent, normalizedKeyword) <= 2) {
-        return genreMapping[normalizedEquivalent];
+  const convertedKeywords = keywords
+    .map((keyword) => {
+      const normalizedKeyword = normalizeText(removeSpaces(keyword));
+      for (const normalizedEquivalent in genreMapping) {
+        if (leven.get(normalizedEquivalent, normalizedKeyword) <= 2) {
+          return genreMapping[normalizedEquivalent];
+        }
       }
-    }
-    return [keyword];
-  }).flat();
+      return [keyword];
+    })
+    .flat();
 
   /* console.log("Converted Keywords to Genres:", convertedKeywords); */
   return convertedKeywords;
@@ -1197,12 +1306,11 @@ const isGenreInPrompt = (genres, promptKeywords) => {
   return keywordInGenres;
 };
 
-
 // Función para validar recomendaciones usando Cosine Similarity
 async function validateRecommendations(recommendations, prompt) {
   if (!recommendations || recommendations.length === 0) return [];
   const promptNormalized = normalizeText(prompt);
-  const promptKeywords = getKeywords(promptNormalized);
+  let promptKeywords = getKeywords(promptNormalized, true);
   /* console.log("Prompt Keywords:", promptKeywords); */
 
   const filteredByActor = recommendations.filter((rec) => {
@@ -1212,10 +1320,10 @@ async function validateRecommendations(recommendations, prompt) {
       return true;
     }
   });
-  /* console.log("Filtered by Actor:", filteredByActor.length); */
+  console.log("Filtered by Actor:", filteredByActor.length);
 
   if (filteredByActor.length > 0) return filteredByActor;
-
+  promptKeywords = getKeywords(promptNormalized, false);
   const filteredByGenre = recommendations.filter((rec) => {
     if (!rec || rec.overview.length < 30) return false;
     const genres_ids = rec.genre_ids;
@@ -1224,7 +1332,7 @@ async function validateRecommendations(recommendations, prompt) {
     /* console.log("Checking Genre in:", rec.title, genres); */
     return isGenreInPrompt(genres, promptKeywords);
   });
-  /* console.log("Filtered by Genre:", filteredByGenre.length); */
+  console.log("Filtered by Genre:", filteredByGenre.length);
 
   if (filteredByGenre.length > 0) return filteredByGenre;
 
@@ -1243,6 +1351,7 @@ function shuffleArray(array) {
 
 router.post("/validate", async (req, res) => {
   const { recommendations, prompt } = req.body;
+  console.log(prompt);
   /* console.log("llamaron validar"); */
   const uniqueRecommendations = [...new Set(recommendations)];
 
@@ -1253,10 +1362,11 @@ router.post("/validate", async (req, res) => {
   const sortedRecommendations = validatedRecommendations
     .filter((rec) => rec.cast.length > 1)
     .filter((rec) => rec.overview.length > 30);
-  const finalRecommendations = sortedRecommendations.sort((a, b) => b.popularity - a.popularity);
-  const randomRec = shuffleArray(finalRecommendations);
+  const finalRecommendations = sortedRecommendations.sort(
+    (a, b) => b.popularity - a.popularity
+  );
   /* console.log(finalRecommendations.map((rec) => rec.title)); */
-  res.json({ results: randomRec });
+  res.json({ results: finalRecommendations });
 });
 
 router.get("/serie-providers", async (req, res) => {
@@ -1280,8 +1390,6 @@ router.get("/serie-providers", async (req, res) => {
       .json({ message: "Error al obtener detalles de la película" });
   }
 });
-
-
 
 router.get("/get-data-home", async (req, res) => {
   const respuesta = {};
