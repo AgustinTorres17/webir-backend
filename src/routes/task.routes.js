@@ -564,7 +564,7 @@ async function getGenreId(genreName) {
 // Función para buscar películas y series por género
 async function searchByGenre(genreName) {
   const genreId = await getGenreId(genreName);
-
+  console.log(genreId);
   const maxPages = 4; // Número máximo de páginas a obtener
   let movieResults = [];
 
@@ -578,7 +578,7 @@ async function searchByGenre(genreName) {
           Authorization: `Bearer ${TMDB_API_KEY}`,
         },
       };
-
+      
       const movieResponse = await axios.request(movieOptions);
       movieResults = movieResults.concat(movieResponse.data.results);
     }
@@ -1224,21 +1224,21 @@ router.get("/get-data-home", async (req, res) => {
     respuesta.tvs = shuffleArray(series);
     const fantasyMovies = await searchByGenre("Fantasy");
     const tvList = await fetchTvListHome();
-    const fantasySeries = tvList.find((tv) => tv.genre === "Fantasy");
+    const fantasySeries = tvList.find((tv) => tv.genre === "Sci-Fi & Fantasy");
     const mixedFantasy = fantasyMovies.concat(fantasySeries.results);
     respuesta.fantasiaPelis = shuffleArray(mixedFantasy);
     const actionMovies = await searchByGenre("Action");
     respuesta.accionPelis = actionMovies;
     const comedyMovies = await searchByGenre("Comedy");
-    const comedySeries = tvList.find((tv) => tv.genre === "Comedy");
+    const comedySeries = tvList.find((tv) => tv.genre === "Comedia");
     const mixedComedy = comedyMovies.concat(comedySeries.results);
     respuesta.comediaPelis = shuffleArray(mixedComedy);
-    const documentaries = tvList.find((tv) => tv.genre === "Documentary");
+    const documentaries = tvList.find((tv) => tv.genre === "Documental");
     const warAndPolitics = tvList.find((tv) => tv.genre === "War & Politics");
     const mixedDocs = documentaries.results.concat(warAndPolitics.results);
     respuesta.docs = shuffleArray(mixedDocs);
     const horrorMovies = await searchByGenre("Horror");
-    const horrorSeries = tvList.find((tv) => tv.genre === "Crime");
+    const horrorSeries = tvList.find((tv) => tv.genre === "Crimen");
     const mixedHorror = horrorMovies.concat(horrorSeries.results);
     respuesta.horrorPelis = shuffleArray(mixedHorror);
     const adventureMovies = await searchByGenre("Adventure");
@@ -1249,7 +1249,7 @@ router.get("/get-data-home", async (req, res) => {
     respuesta.aventuraPelis = shuffleArray(mixedAdventure);
     res.json(respuesta);
   } catch (error) {
-    console.error("Error al obtener los datos del home");
+    console.error("Error al obtener los datos del home", error);
   }
 });
 
