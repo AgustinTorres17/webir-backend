@@ -19,7 +19,7 @@ Tu tarea es proporcionar una lista de títulos exactos de películas, series o p
 - Devuelve únicamente los nombres oficiales y exactos de las películas, series o programas de televisión.
 - Evita usar cualquier carácter especial que no esté presente en el nombre oficial y omite los números si están presentes.
 - Si el usuario pide películas, proporciona títulos de películas; si pide series o programas de televisión, proporciona títulos de series o programas de televisión.
-- Intenta proporcionar la mayor cantidad de nombres, con un mínimo de 10 y un máximo de 20. Esto es muy importante porque el usuario necesita opciones para elegir.
+- Intenta proporcionar la mayor cantidad de nombres, con un mínimo de 15 y un máximo de 25. Esto es muy importante porque el usuario necesita opciones para elegir.
 - Si el usuario menciona una película o serie como ejemplo, los títulos que debes retornar deben ser de películas o series contemporáneas o relacionadas con la mencionada por el usuario.
 La respuesta debe ser un arreglo de strings con los nombres de las películas, series o programas de televisión. Cada nombre debe estar entre comillas dobles y separado por comas. Omite cualquier otro tipo de información adicional. Solamente los nombres.`;
 
@@ -205,9 +205,9 @@ const genreEquivalents = [
     ],
   },
   {
-    name: "Comedy",
+    name: "Comedia",
     equivalents: [
-      "Comedia",
+      "Comedy",
       "Divertida",
       "Graciosa",
       "Risas",
@@ -225,9 +225,9 @@ const genreEquivalents = [
     ],
   },
   {
-    name: "Crime",
+    name: "Crimen",
     equivalents: [
-      "Crimen",
+      "Crime",
       "Policial",
       "Detective",
       "Investigación",
@@ -242,12 +242,14 @@ const genreEquivalents = [
       "Policiales",
       "Policíacos",
       "Detectives",
+      "Criminal",
+      "Criminales"
     ],
   },
   {
-    name: "Documentary",
+    name: "Documental",
     equivalents: [
-      "Documental",
+      "Documentary",
       "Documentales",
       "Documentales de",
       "Documentales sobre",
@@ -906,7 +908,7 @@ router.get("/movie", async (req, res) => {
     );
 
     // Get TV shows
-    options.url = `https://api.themoviedb.org/3/search/tv?query=${movieTitle}&page=1&language=es-MX`;
+    options.url = `https://api.themoviedb.org/3/search/tv?query=${movieTitle}&page=1&language=es-ES`;
     const response2 = await axios.request(options);
     let tvResults = response2.data.results;
 
@@ -914,7 +916,7 @@ router.get("/movie", async (req, res) => {
       try {
         let options = {
           method: "GET",
-          url: `https://api.themoviedb.org/3/tv/${result.id}/credits?language=es-MX`,
+          url: `https://api.themoviedb.org/3/tv/${result.id}/credits?language=es-ES`,
           headers: {
             accept: "application/json",
             Authorization: `Bearer ${TMDB_API_KEY}`,
@@ -950,12 +952,12 @@ router.get("/movie", async (req, res) => {
 
     // Filter results
     let resultsCorrected = results.filter((result) => {
-      return result.overview.length > 20 && result.poster_path != null;
+      return result.overview.length > 30 && result.poster_path != null && result.vote_average > 1;
     });
 
     resultsCorrected.sort((a, b) => b.popularity - a.popularity);
 
-    const resSeparados = resultsCorrected.slice(0, 10);
+    const resSeparados = resultsCorrected.slice(0, 5);
 
     return res.json({ results: resSeparados });
   } catch (error) {
@@ -1106,6 +1108,13 @@ const normalizeText = (text) => {
 };
 
 // Función para extraer palabras clave
+const stopwords = ["el", "la", "los", "las", "un", "una", "unos", "unas", "de", "y", "a", "que", "en", "es", "por", "con", "para", "o", "serie", "pelicula"];
+
+const splitByStopwords = (text) => {
+  const regex = new RegExp(`\\b(${stopwords.join('|')})\\b`, 'gi');
+  return text.split(regex).filter(word => !stopwords.includes(word.toLowerCase()) && word.trim() !== '');
+};
+
 const getKeywords = (text) => {
   const doc = compromise(text);
   const keywords = doc
@@ -1113,27 +1122,37 @@ const getKeywords = (text) => {
     .out("array")
     .concat(doc.adjectives().out("array"))
     .concat(doc.verbs().out("array"));
-  return keywords.map((keyword) => keyword.toLowerCase());
+
+  const filteredKeywords = keywords.flatMap((keyword) => splitByStopwords(keyword));
+  console.log("Extracted Keywords:", filteredKeywords);
+  return filteredKeywords.map((keyword) => keyword.toLowerCase());
 };
 
 const convertKeywordsToGenres = (keywords) => {
+  const genreMapping = {};
+  genreEquivalents.forEach((genreEquivalent) => {
+    const { name, equivalents } = genreEquivalent;
+    equivalents.forEach((equivalent) => {
+      const normalizedEquivalent = normalizeText(removeSpaces(equivalent));
+      if (!genreMapping[normalizedEquivalent]) {
+        genreMapping[normalizedEquivalent] = [];
+      }
+      genreMapping[normalizedEquivalent].push(name);
+      genreMapping[normalizedEquivalent].push(...equivalents.map(eq => normalizeText(removeSpaces(eq))));
+    });
+  });
+
   const convertedKeywords = keywords.map((keyword) => {
     const normalizedKeyword = normalizeText(removeSpaces(keyword));
-    for (const genreEquivalent of genreEquivalents) {
-      const { name, equivalents } = genreEquivalent;
-      const normalizedEquivalents = equivalents.map((eq) =>
-        normalizeText(removeSpaces(eq))
-      );
-      if (
-        normalizedEquivalents.some(
-          (eq) => leven.get(eq, normalizedKeyword) <= 2
-        )
-      ) {
-        return name;
+    for (const normalizedEquivalent in genreMapping) {
+      if (leven.get(normalizedEquivalent, normalizedKeyword) <= 2) {
+        return genreMapping[normalizedEquivalent];
       }
     }
-    return keyword;
-  });
+    return [keyword];
+  }).flat();
+
+  console.log("Converted Keywords to Genres:", convertedKeywords);
   return convertedKeywords;
 };
 
@@ -1164,6 +1183,8 @@ const isGenreInPrompt = (genres, promptKeywords) => {
   }
 
   normalizedKeywords = convertKeywordsToGenres(normalizedKeywords);
+  console.log("Normalized Genres:", normalizedGenres);
+  console.log("Normalized Keywords:", normalizedKeywords);
 
   // Verifica si alguno de los géneros normalizados está en las palabras clave
   const keywordInGenres = normalizedKeywords.some((keyword) =>
@@ -1176,38 +1197,53 @@ const isGenreInPrompt = (genres, promptKeywords) => {
   return keywordInGenres;
 };
 
+
 // Función para validar recomendaciones usando Cosine Similarity
 async function validateRecommendations(recommendations, prompt) {
   if (!recommendations || recommendations.length === 0) return [];
   const promptNormalized = normalizeText(prompt);
   const promptKeywords = getKeywords(promptNormalized);
-  /* console.log(promptKeywords); */
+  console.log("Prompt Keywords:", promptKeywords);
+
   const filteredByActor = recommendations.filter((rec) => {
     if (!rec || !rec.cast || rec.cast.length === 0) return false;
-    console.log(rec.title, rec.cast);
+    console.log("Checking Actor in:", rec.title, rec.cast);
     if (isPersonInPrompt(rec.cast, promptKeywords)) {
       return true;
     }
   });
-  /* console.log(filteredByActor.length); */
+  console.log("Filtered by Actor:", filteredByActor.length);
+
   if (filteredByActor.length > 0) return filteredByActor;
+
   const filteredByGenre = recommendations.filter((rec) => {
     if (!rec || rec.overview.length < 30) return false;
     const genres_ids = rec.genre_ids;
     const genres = getGenreName(genres_ids);
     if (!genres || genres.length === 0) return false;
+    console.log("Checking Genre in:", rec.title, genres);
     return isGenreInPrompt(genres, promptKeywords);
   });
-  /* console.log(filteredByGenre.length); */
+  console.log("Filtered by Genre:", filteredByGenre.length);
+
   if (filteredByGenre.length > 0) return filteredByGenre;
 
+  return recommendations;
+}
 
-  return finalRecommendations;
+function shuffleArray(array) {
+  for (var i = array.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = array[i];
+    array[i] = array[j];
+    array[j] = temp;
+  }
+  return array;
 }
 
 router.post("/validate", async (req, res) => {
   const { recommendations, prompt } = req.body;
- /*  console.log("llamaron validar"); */
+  console.log("llamaron validar");
   const uniqueRecommendations = [...new Set(recommendations)];
 
   const validatedRecommendations = await validateRecommendations(
@@ -1215,13 +1251,12 @@ router.post("/validate", async (req, res) => {
     prompt
   );
   const sortedRecommendations = validatedRecommendations
-    .sort((a, b) => b.popularity - a.popularity)
-    .filter((rec) => rec.cast.length > 3)
+    .filter((rec) => rec.cast.length > 1)
     .filter((rec) => rec.overview.length > 30);
-  const finalRecommendations = sortedRecommendations
-    .sort((a, b) => b.cast.length - a.cast.length)
-    .slice(0, 15);
-  res.json({ results: finalRecommendations });
+  const finalRecommendations = sortedRecommendations.sort((a, b) => b.popularity - a.popularity);
+  const randomRec = shuffleArray(finalRecommendations);
+  console.log(finalRecommendations.map((rec) => rec.title));
+  res.json({ results: randomRec });
 });
 
 router.get("/serie-providers", async (req, res) => {
@@ -1246,15 +1281,7 @@ router.get("/serie-providers", async (req, res) => {
   }
 });
 
-function shuffleArray(array) {
-  for (var i = array.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var temp = array[i];
-    array[i] = array[j];
-    array[j] = temp;
-  }
-  return array;
-}
+
 
 router.get("/get-data-home", async (req, res) => {
   const respuesta = {};
