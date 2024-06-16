@@ -76,6 +76,8 @@ const fetchTvListHome = async () => {
   return tvList;
 };
 
+
+
 const fetchTvByGenre = async (genre) => {
   const genreId = tv_genres.find((g) =>
     g.name.toLowerCase().trim().includes(genre.toLowerCase())
@@ -287,6 +289,8 @@ const fetchMovies = async () => {
   const response = await axios.request(options);
   return response.data.results;
 };
+
+
 
 const fetchSeries = async () => {
   const options = {
@@ -509,6 +513,46 @@ router.get("/movie/cast/:movieId", async (req, res) => {
   let options = {
     method: "GET",
     url: `https://api.themoviedb.org/3/movie/${movieId}/credits?language=es-ES`,
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer " + TMDB_API_KEY,
+    },
+  };
+  try {
+    const response = await axios.request(options);
+    return res.json(response.data);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
+router.get("/movie/trailer/:movieId", async (req, res) => {
+  const { movieId } = req.params;
+  let options = {
+    method: "GET",
+    url: `https://api.themoviedb.org/3/movie/${movieId}/videos?language=en-EN`,
+    headers: {
+      accept: "application/json",
+      Authorization: "Bearer " + TMDB_API_KEY,
+    },
+  };
+  try {
+    const response = await axios.request(options);
+    return res.json(response.data);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error al obtener detalles de la película" });
+  }
+});
+
+router.get("/serie/trailer/:serieId", async (req, res) => {
+  const { serieId } = req.params;
+  let options = {
+    method: "GET",
+    url: `https://api.themoviedb.org/3/tv/${serieId}/videos?language=en-EN`,
     headers: {
       accept: "application/json",
       Authorization: "Bearer " + TMDB_API_KEY,
