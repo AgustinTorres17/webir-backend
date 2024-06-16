@@ -1201,13 +1201,7 @@ async function validateRecommendations(recommendations, prompt) {
   /* console.log(filteredByGenre.length); */
   if (filteredByGenre.length > 0) return filteredByGenre;
 
-  const sortedRecommendations = recommendations
-    .sort((a, b) => b.popularity - a.popularity)
-    .filter((rec) => rec.cast.length > 3)
-    .filter((rec) => rec.overview.length > 30);
-  const finalRecommendations = sortedRecommendations
-    .sort((a, b) => b.cast.length - a.cast.length)
-    .slice(0, 15);
+
   return finalRecommendations;
 }
 
@@ -1220,8 +1214,14 @@ router.post("/validate", async (req, res) => {
     uniqueRecommendations,
     prompt
   );
-
-  res.json({ results: validatedRecommendations });
+  const sortedRecommendations = validatedRecommendations
+    .sort((a, b) => b.popularity - a.popularity)
+    .filter((rec) => rec.cast.length > 3)
+    .filter((rec) => rec.overview.length > 30);
+  const finalRecommendations = sortedRecommendations
+    .sort((a, b) => b.cast.length - a.cast.length)
+    .slice(0, 15);
+  res.json({ results: finalRecommendations });
 });
 
 router.get("/serie-providers", async (req, res) => {
