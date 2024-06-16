@@ -490,7 +490,7 @@ const fetchTvByGenre = async (genre) => {
 //Leer el prompt del usuario y generar recomendaciones
 router.post("/generate", async (req, res) => {
   let { prompt } = req.body;
-  console.log(prompt);
+  /* console.log(prompt); */
   promptGlobal = prompt;
   if (!prompt)
     return res.status(400).json({ message: "No se proporcionó un prompt" });
@@ -511,12 +511,12 @@ router.post("/generate", async (req, res) => {
       const movieNames = movieNamesArray
         .map((name) => name.trim().replace(/,$/, "").replace(/^"|"$/, ""))
         .filter((name) => name); // Eliminar elementos vacíos
-      console.log(movieNames);
+      /* console.log(movieNames); */
       res.json(movieNames);
     } catch (error) {
-      console.log(text);
+      /* console.log(text); */
       /* console.error("Error al parsear el texto:", error); */
-      console.log(error);
+      /* console.log(error); */
       res.status(500).json({ message: text });
     }
   } catch (error) {
@@ -566,7 +566,7 @@ async function getGenreId(genreName) {
 // Función para buscar películas y series por género
 async function searchByGenre(genreName) {
   const genreId = await getGenreId(genreName);
-  console.log(genreId);
+ /*  console.log(genreId); */
   const maxPages = 4; // Número máximo de páginas a obtener
   let movieResults = [];
 
@@ -817,10 +817,9 @@ router.get("/serie/:id", async (req, res) => {
 router.get("/movie2", async (req, res) => {
   try {
     let { movieTitle } = req.query;
-    const result = fuse.search(movieTitle);
     let options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/search/movie?query=${result}&page=1&language=es-MX`,
+      url: `https://api.themoviedb.org/3/search/movie?query=${movieTitle}&page=1&language=es-MX`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,
@@ -1182,7 +1181,7 @@ async function validateRecommendations(recommendations, prompt) {
   if (!recommendations || recommendations.length === 0) return [];
   const promptNormalized = normalizeText(prompt);
   const promptKeywords = getKeywords(promptNormalized);
-  console.log(promptKeywords);
+  /* console.log(promptKeywords); */
   const filteredByActor = recommendations.filter((rec) => {
     if (!rec || !rec.cast || rec.cast.length === 0) return false;
     console.log(rec.title, rec.cast);
@@ -1190,7 +1189,7 @@ async function validateRecommendations(recommendations, prompt) {
       return true;
     }
   });
-  console.log(filteredByActor.length);
+  /* console.log(filteredByActor.length); */
   if (filteredByActor.length > 0) return filteredByActor;
   const filteredByGenre = recommendations.filter((rec) => {
     if (!rec || rec.overview.length < 30) return false;
@@ -1199,7 +1198,7 @@ async function validateRecommendations(recommendations, prompt) {
     if (!genres || genres.length === 0) return false;
     return isGenreInPrompt(genres, promptKeywords);
   });
-  console.log(filteredByGenre.length);
+  /* console.log(filteredByGenre.length); */
   if (filteredByGenre.length > 0) return filteredByGenre;
 
   const sortedRecommendations = recommendations
@@ -1214,7 +1213,7 @@ async function validateRecommendations(recommendations, prompt) {
 
 router.post("/validate", async (req, res) => {
   const { recommendations, prompt } = req.body;
-  console.log("llamaron validar");
+ /*  console.log("llamaron validar"); */
   const uniqueRecommendations = [...new Set(recommendations)];
 
   const validatedRecommendations = await validateRecommendations(
