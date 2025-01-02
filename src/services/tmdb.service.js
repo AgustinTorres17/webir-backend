@@ -1,10 +1,11 @@
 const axios = require("axios");
 const { TMDB_API_KEY } = require("../config");
 const { shuffleArray } = require("../utils/shuffleArray");
-const getGenreId = require("../utils/getGenreId");
 const fetchTvByGenre = require("../utils/fetchTvByGenre");
 const searchByGenre = require("../utils/searchByGenre");
 const fetchTvListHome = require("../utils/fetchTVListHome");
+const limitArray = require("../utils/limitSize");
+const getGenreIds = require("../utils/getGenreId");
 
 async function getMovieDetails(id) {
   try {
@@ -72,7 +73,7 @@ const fetchPopularData = async () => {
   }
 };
 
-async function fetchMovies() {
+async function fetchMovies(limit = 20) {
   const options = {
     method: "GET",
     url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc&watch_region=UY&with_original_language=en%7Ces",
@@ -115,12 +116,15 @@ async function fetchGenres() {
   };
 
   const response = await axios.request(options);
-  console.log(response.data.genres);
   return response.data.genres;
 }
 
 async function getContentByGenre(genre) {
-  const genreId = await getGenreId(genre);
+  console.log("Buscando contenido por género:", genre);
+  const [movieGenreId, tvGenreId] = await getGenreIds(genre);
+  console.log("Movie genre ID:", movieGenreId);
+  if (!movieGenreId && !tvGenreId) return [];
+
   let respuesta = [];
   let numbers = [];
   for (let i = 1; i <= 5; i++) {
@@ -130,7 +134,7 @@ async function getContentByGenre(genre) {
     }
     const options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/discover/movie?with_genres=${genreId}&include_adult=false&include_video=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
+      url: `https://api.themoviedb.org/3/discover/movie?with_genres=${movieGenreId}&include_adult=false&include_video=false&language=es-ES&page=${number}&sort_by=popularity.desc&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,
@@ -140,15 +144,28 @@ async function getContentByGenre(genre) {
       const response = await axios.request(options);
       respuesta = respuesta?.concat(response.data.results);
     } catch (error) {
-      /* console.error("Error al obtener las películas por género:", error); */
-      res.status(500).json({ message: "Error interno del servidor" });
+      console.error("Error fetching movies:", error);
     }
   }
-  const seriesGenre = await fetchTvByGenre(genre);
-  respuesta = shuffleArray(respuesta?.concat(seriesGenre));
+
+  if (tvGenreId) {
+    const seriesGenre = await fetchTvByGenre(tvGenreId);
+    respuesta = respuesta?.concat(seriesGenre);
+  }
+
+  respuesta = shuffleArray(respuesta);
   respuesta = respuesta.filter(
     (result) => result.overview && result.overview.trim() !== ""
   );
+
+  console.log(
+    "Cantidad de peliculas: " +
+      respuesta.filter((result) => result.title).length
+  );
+  console.log(
+    "Cantidad de series: " + respuesta.filter((result) => result.name).length
+  );
+
   return respuesta;
 }
 
@@ -186,7 +203,6 @@ async function getMovieOrSerieByTitle(movieTitle) {
 
     // Ordenar resultados por vote_average de forma descendente
     results.sort((a, b) => b.popularity - a.popularity);
-    console.log(results);
     return results;
   } catch (error) {
     console.error("Error al buscar películas:", error);
@@ -330,6 +346,67 @@ async function getSerieCast(id) {
   }
 }
 
+async function getDiscoverMovies() {
+  let aggregatedResults = [];
+  let numbersHistory = [];
+  for (let i = 0; i < 5; i++) {
+    let randomPage = Math.floor(Math.random() * 100) + 1;
+    while (numbersHistory.includes(randomPage)) {
+      randomPage = Math.floor(Math.random() * 100) + 1;
+    }
+    numbersHistory.push(randomPage);
+
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/movie?language=es-ES&page=${randomPage}&include_adult=false&sort_by=popularity.desc&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO`,
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${TMDB_API_KEY}`,
+      },
+    };
+    try {
+      const response = await axios.request(options);
+      if (response.data && response.data.results) {
+        aggregatedResults = aggregatedResults.concat(response.data.results);
+      }
+    } catch (error) {
+      // Handle error
+    }
+  }
+  return aggregatedResults;
+}
+
+async function getDiscoverSeries() {
+  let aggregatedResults = [];
+  let numbersHistory = [];
+  for (let i = 0; i < 5; i++) {
+    let randomPage = Math.floor(Math.random() * 100) + 1;
+    while (numbersHistory.includes(randomPage)) {
+      randomPage = Math.floor(Math.random() * 100) + 1;
+    }
+    numbersHistory.push(randomPage);
+
+    const options = {
+      method: "GET",
+      url: `https://api.themoviedb.org/3/discover/tv?language=es-ES&page=${randomPage}&include_adult=false&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO`,
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${TMDB_API_KEY}`,
+      },
+    };
+    try {
+      const response = await axios.request(options);
+      console.log(response.data);
+      if (response.data && response.data.results) {
+        aggregatedResults = aggregatedResults.concat(response.data.results);
+      }
+    } catch (error) {
+      // Handle error
+    }
+  }
+  return aggregatedResults;
+}
+
 async function getHomeData() {
   const respuesta = {};
 
@@ -337,13 +414,20 @@ async function getHomeData() {
     // Obtener datos populares
     const popularData = await fetchPopularData();
     respuesta.popularData = shuffleArray(popularData);
+    respuesta.popularData.movies = limitArray(respuesta.popularData.movies, 20);
+    respuesta.popularData.tvShows = limitArray(
+      respuesta.popularData.tvShows,
+      20
+    );
 
     // Obtener películas y series
     const movies = await fetchMovies();
     respuesta.pelis = shuffleArray(movies);
+    respuesta.pelis = limitArray(respuesta.pelis, 20);
 
     const series = await fetchSeries();
     respuesta.tvs = shuffleArray(series);
+    respuesta.tvs = limitArray(respuesta.tvs, 20);
 
     // Obtener géneros específicos (ejemplo: Fantasía, Acción, etc.)
     const fantasyMovies = await searchByGenre("Fantasia", TMDB_API_KEY);
@@ -351,24 +435,29 @@ async function getHomeData() {
     const fantasySeries = tvList.find((tv) => tv.genre === "Sci-Fi & Fantasy");
     const mixedFantasy = fantasyMovies.concat(fantasySeries);
     respuesta.fantasiaPelis = shuffleArray(mixedFantasy);
+    respuesta.fantasiaPelis = limitArray(respuesta.fantasiaPelis, 20);
 
     const actionMovies = await searchByGenre("Accion", TMDB_API_KEY);
     respuesta.accionPelis = shuffleArray(actionMovies);
+    respuesta.accionPelis = limitArray(respuesta.accionPelis, 20);
 
     const comedyMovies = await searchByGenre("Comedia", TMDB_API_KEY);
     const comedySeries = tvList.find((tv) => tv.genre === "Comedia");
     const mixedComedy = comedyMovies.concat(comedySeries.results);
     respuesta.comediaPelis = shuffleArray(mixedComedy);
+    respuesta.comediaPelis = limitArray(respuesta.comediaPelis, 20);
 
     const documentaries = tvList.find((tv) => tv.genre === "Documental");
     const warAndPolitics = tvList.find((tv) => tv.genre === "War & Politics");
     const mixedDocs = documentaries.results.concat(warAndPolitics.results);
     respuesta.docs = shuffleArray(mixedDocs);
+    respuesta.docs = limitArray(respuesta.docs, 20);
 
     const horrorMovies = await searchByGenre("Terror", TMDB_API_KEY);
     const horrorSeries = tvList.find((tv) => tv.genre === "Crimen");
     const mixedHorror = horrorMovies.concat(horrorSeries.results);
     respuesta.horrorPelis = shuffleArray(mixedHorror);
+    respuesta.horrorPelis = limitArray(respuesta.horrorPelis, 20);
 
     const adventureMovies = await searchByGenre("Aventura", TMDB_API_KEY);
     const adventureSeries = tvList.find(
@@ -376,6 +465,7 @@ async function getHomeData() {
     );
     const mixedAdventure = adventureMovies.concat(adventureSeries.results);
     respuesta.aventuraPelis = shuffleArray(mixedAdventure);
+    respuesta.aventuraPelis = limitArray(respuesta.aventuraPelis, 20);
 
     return respuesta;
   } catch (error) {
@@ -400,4 +490,6 @@ module.exports = {
   getMovieCast,
   getSerieCast,
   getHomeData,
+  getDiscoverMovies,
+  getDiscoverSeries,
 };

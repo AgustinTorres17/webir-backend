@@ -17,6 +17,8 @@ const {
   getSerieCast,
   getMovieProviders,
   getSerieProviders,
+  getDiscoverMovies,
+  getDiscoverSeries,
 } = require("../controllers/recommendation.controller");
 
 const router = Router();
@@ -50,5 +52,8 @@ router.get("/serie-providers", getSerieProviders); // usa query: serieId
 router.post("/validate", validateRecommendations);
 
 router.get("/get-data-home", getHomeData);
+
+router.get("/discover-movies", getDiscoverMovies);
+router.get("/discover-series", getDiscoverSeries);
 
 module.exports = router;

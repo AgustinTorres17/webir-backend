@@ -1,10 +1,7 @@
-const tv_genres = require("../constants/tvGenres");
+const { TMDB_API_KEY } = require("../config");
+const axios = require("axios");
 
-async function fetchTvByGenre(genre) {
-  const genreId = tv_genres.find((g) =>
-    g.name.toLowerCase().trim().includes(genre.toLowerCase())
-  )?.id;
-  if (!genreId) return [];
+async function fetchTvByGenre(genreId) {
   let seriesGenre = [];
   let numbers = [];
   for (let i = 1; i <= 5; i++) {
@@ -14,7 +11,7 @@ async function fetchTvByGenre(genre) {
     }
     const options = {
       method: "GET",
-      url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}&include_adult=false&language=es-ES&page=${number}&sort_by=popularity.desc`,
+      url: `https://api.themoviedb.org/3/discover/tv?with_genres=${genreId}&include_adult=false&language=es-ES&page=${number}&sort_by=popularity.desc&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO`,
       headers: {
         accept: "application/json",
         Authorization: "Bearer " + TMDB_API_KEY,

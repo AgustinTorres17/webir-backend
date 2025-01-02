@@ -235,6 +235,27 @@ async function getSerieProviders(req, res) {
   }
 }
 
+async function getDiscoverMovies(req, res) {
+  try {
+    const movies = await tmdbService.getDiscoverMovies();
+    res.json(movies);
+  } catch (error) {
+    console.error("Error al obtener las películas:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
+async function getDiscoverSeries(req, res) {
+  try {
+    const series = await tmdbService.getDiscoverSeries();
+    console.log("SADADASD", series);
+    res.json(series);
+  } catch (error) {
+    console.error("Error al obtener las series:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
+}
+
 
 // Exportar las funciones del controlador
 module.exports = {
@@ -255,4 +276,6 @@ module.exports = {
   getSerieCast,
   getMovieProviders,
   getSerieProviders,
+  getDiscoverMovies,
+  getDiscoverSeries,
 };
