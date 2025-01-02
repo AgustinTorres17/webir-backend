@@ -41,7 +41,7 @@ async function getMovieDetails(id) {
 const fetchPopularData = async () => {
   const movieOptions = {
     method: "GET",
-    url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc",
+    url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO",
     headers: {
       accept: "application/json",
       Authorization: "Bearer " + TMDB_API_KEY,
@@ -50,7 +50,7 @@ const fetchPopularData = async () => {
 
   const tvOptions = {
     method: "GET",
-    url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&language=es-ES&page=1&sort_by=popularity.desc",
+    url: "https://api.themoviedb.org/3/discover/tv?include_adult=false&language=es-ES&page=1&sort_by=popularity.desc&with_origin_country=US|AR|UY|ES|CO|PE|CL|VE|EC|BO|BR|MX|CR|PA|GT|HN|NI|SV|PR|DO",
     headers: {
       accept: "application/json",
       Authorization: "Bearer " + TMDB_API_KEY,
@@ -73,7 +73,7 @@ const fetchPopularData = async () => {
   }
 };
 
-async function fetchMovies(limit = 20) {
+async function fetchMovies() {
   const options = {
     method: "GET",
     url: "https://api.themoviedb.org/3/discover/movie?include_adult=false&include_video=false&language=es-ES&page=1&sort_by=popularity.desc&watch_region=UY&with_original_language=en%7Ces",
@@ -99,8 +99,6 @@ async function fetchSeries() {
   const response = await axios.request(options);
   const series = response.data.results.map((series) => ({
     ...series,
-    release_date: series.first_air_date,
-    title: series.name,
   }));
   return series;
 }
@@ -428,6 +426,7 @@ async function getHomeData() {
     const series = await fetchSeries();
     respuesta.tvs = shuffleArray(series);
     respuesta.tvs = limitArray(respuesta.tvs, 20);
+    console.log(respuesta.tvs);
 
     // Obtener géneros específicos (ejemplo: Fantasía, Acción, etc.)
     const fantasyMovies = await searchByGenre("Fantasia", TMDB_API_KEY);
