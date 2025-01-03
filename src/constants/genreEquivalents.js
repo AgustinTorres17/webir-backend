@@ -1,4 +1,4 @@
-export const genreEquivalents = [
+const genreEquivalents = [
   {
     name: "Action & Adventure",
     equivalents: [
@@ -311,3 +311,7 @@ export const genreEquivalents = [
     ],
   },
 ];
+
+module.exports = {
+  genreEquivalents,
+};

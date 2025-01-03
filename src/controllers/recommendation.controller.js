@@ -248,7 +248,6 @@ async function getDiscoverMovies(req, res) {
 async function getDiscoverSeries(req, res) {
   try {
     const series = await tmdbService.getDiscoverSeries();
-    console.log("SADADASD", series);
     res.json(series);
   } catch (error) {
     console.error("Error al obtener las series:", error);

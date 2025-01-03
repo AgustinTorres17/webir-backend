@@ -118,9 +118,7 @@ async function fetchGenres() {
 }
 
 async function getContentByGenre(genre) {
-  console.log("Buscando contenido por género:", genre);
   const [movieGenreId, tvGenreId] = await getGenreIds(genre);
-  console.log("Movie genre ID:", movieGenreId);
   if (!movieGenreId && !tvGenreId) return [];
 
   let respuesta = [];
@@ -156,13 +154,6 @@ async function getContentByGenre(genre) {
     (result) => result.overview && result.overview.trim() !== ""
   );
 
-  console.log(
-    "Cantidad de peliculas: " +
-      respuesta.filter((result) => result.title).length
-  );
-  console.log(
-    "Cantidad de series: " + respuesta.filter((result) => result.name).length
-  );
 
   return respuesta;
 }
@@ -394,7 +385,6 @@ async function getDiscoverSeries() {
     };
     try {
       const response = await axios.request(options);
-      console.log(response.data);
       if (response.data && response.data.results) {
         aggregatedResults = aggregatedResults.concat(response.data.results);
       }
@@ -426,7 +416,6 @@ async function getHomeData() {
     const series = await fetchSeries();
     respuesta.tvs = shuffleArray(series);
     respuesta.tvs = limitArray(respuesta.tvs, 20);
-    console.log(respuesta.tvs);
 
     // Obtener géneros específicos (ejemplo: Fantasía, Acción, etc.)
     const fantasyMovies = await searchByGenre("Fantasia", TMDB_API_KEY);
