@@ -1,6 +1,6 @@
 const { genreEquivalents } = require("../constants/genreEquivalents");
 const compromise = require("compromise");
-const stopwords = require("../constants/stopwords");
+const stopwords = require("../constants/stopWords");
 const normalizeText = require("./normalizeText");
 const removeSpaces = require("./removeSpaces");
 const leven = require("fast-levenshtein");
